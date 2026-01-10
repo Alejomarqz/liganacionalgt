@@ -1,0 +1,61 @@
+
+platform :ios, '17.0'
+
+# Rutas estándar de React Native
+require_relative '../node_modules/react-native/scripts/react_native_pods.rb'
+require_relative '../node_modules/@react-native-community/cli-platform-ios/native_modules'
+
+# Desactiva New Architecture
+ENV['RCT_NEW_ARCH_ENABLED'] = "0"
+
+# Apple Silicon (ARM)
+ENV['NODE_BINARY'] = 'arch -arm64 /opt/homebrew/bin/node'
+
+# 👉 Necesario para Firebase (Swift) + estáticos
+use_frameworks! :linkage => :static
+use_modular_headers!
+
+target 'chapin' do
+  config = use_native_modules!
+
+  use_react_native!(
+    :path             => config[:reactNativePath],
+    :hermes_enabled   => true,
+    :fabric_enabled   => false,
+    :new_arch_enabled => false
+  )
+
+  # DevSupport (pantalla de errores / recarga en desarrollo)
+  pod 'React-Core/DevSupport', :path => '../node_modules/react-native/'
+end
+
+post_install do |installer|
+  # Hook oficial de React Native
+  react_native_post_install(installer)
+
+  # 1) iOS mínimo 17 en TODOS los pods
+  installer.pods_project.targets.each do |t|
+    t.build_configurations.each do |c|
+      c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '17.0'
+    end
+  end
+
+  # 2) PRIVACY – desactivar instalación de todos los bundles de privacidad
+  installer.pods_project.targets.each do |t|
+    if t.name.include?('React-Core_privacy')
+      t.build_configurations.each do |c|
+        c.build_settings['SKIP_INSTALL'] = 'YES'
+      end
+    end
+  end
+
+  # 3) HACK ESPECÍFICO: renombrar el bundle conflictivo
+  installer.pods_project.targets.each do |t|
+    next unless t.name == 'React-Core-common-React-Core_privacy'
+
+    t.build_configurations.each do |c|
+      c.build_settings['PRODUCT_NAME'] = 'React-Core-common-privacy-alt'
+      c.build_settings['WRAPPER_NAME'] = 'React-Core-common-privacy-alt.bundle'
+    end
+  end
+end
