@@ -1,0 +1,93 @@
+# =========================
+# macOS
+# =========================
+.DS_Store
+._*
+.Trashes
+.Spotlight-V100
+.TemporaryItems
+.fseventsd
+.VolumeIcon.icns
+.DocumentRevisions-V100
+
+# =========================
+# Node / JS
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.jsbundle
+*.map
+
+# Yarn Berry / PnP (si usas)
+.yarn/
+.pnp.*
+.pnp.cjs
+
+# =========================
+# Env / secrets
+# =========================
+.env
+.env.*
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+
+# =========================
+# Android / Gradle / IntelliJ
+# =========================
+.idea/
+*.iml
+.gradle/
+local.properties
+android/.gradle/
+android/app/build/
+android/build/
+android/app/libs/
+
+# (si tienes keystores dentro del repo, NO los subas)
+android/keystores/
+android/app/keystores/
+
+# Dumps / profiling
+*.hprof
+
+# =========================
+# iOS / Xcode / CocoaPods
+# =========================
+build/
+DerivedData/
+xcuserdata/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.xcuserstate
+
+ios/Pods/
+ios/build/
+
+# =========================
+# fastlane
+# =========================
+*/fastlane/report.xml
+*/fastlane/Preview.html
+*/fastlane/screenshots/
+
+# =========================
+# Misc
+# =========================
+release/
+source_maps/

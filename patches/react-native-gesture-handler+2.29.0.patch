@@ -1,0 +1,306 @@
+diff --git a/node_modules/react-native-gesture-handler/android/build.gradle b/node_modules/react-native-gesture-handler/android/build.gradle
+index 6348d17..e7a0939 100644
+--- a/node_modules/react-native-gesture-handler/android/build.gradle
++++ b/node_modules/react-native-gesture-handler/android/build.gradle
+@@ -210,6 +210,8 @@ android {
+                 // codegen turned off
+                 srcDirs += 'paper/src/main/java'
+             }
++            exclude '**/RNGestureHandlerButtonManagerInterface.java'
++            exclude '**/RNGestureHandlerRootViewManagerInterface.java'
+         }
+     }
+ 
+@@ -249,4 +251,43 @@ dependencies {
+     implementation 'androidx.appcompat:appcompat:1.7.0'
+     implementation "androidx.core:core-ktx:1.16.0"
+     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
++}
++    // ======================================================================
++// 🩹 HOTFIX — RNGH Kotlin crash (STATISTICS_COLLECT_METRICS_OVERHEAD)
++// Desactiva tareas Kotlin solo en react-native-gesture-handler en Windows.
++// Compila únicamente los .java (funcional 100% con RN 0.75 modo Paper)
++// ======================================================================
++
++afterEvaluate {
++    if (project.name == "react-native-gesture-handler") {
++        println("[RNGH] ⚙️ Desactivando compilación Kotlin temporalmente (hotfix Windows).")
++
++        // 1️⃣ Desactivar tareas Kotlin
++        tasks.matching { it.name.toLowerCase().contains("kotlin") }.configureEach {
++            enabled = false
++        }
++
++        // 2️⃣ Asegurar que sólo se compilen las fuentes Java
++        android.sourceSets.all { ss ->
++            if (file("${projectDir}/src/${ss.name}/java").exists()) {
++                ss.java.srcDirs += ["src/${ss.name}/java"]
++            }
++            // 3️⃣ Ignorar cualquier carpeta Kotlin residual
++            if (file("${projectDir}/src/${ss.name}/kotlin").exists()) {
++                ss.kotlin.srcDirs = []
++            }
++        }
++
++        // 4️⃣ Excluir manualmente el archivo conflictivo .kt
++        android.sourceSets.named("main") { ss ->
++            ss.java.exclude("**/RNGestureHandlerPackage.kt")
++            ss.kotlin.exclude("**/RNGestureHandlerPackage.kt")
++            ss.java.exclude("**/RNGestureHandlerButtonManagerInterface.java")
++            ss.java.exclude("**/RNGestureHandlerRootViewManagerInterface.java")
++            ss.java.exclude("**/RNGestureHandlerButtonManagerDelegate.java")
++            ss.java.exclude("**/RNGestureHandlerRootViewManagerDelegate.java")
++            ss.java.srcDirs += ["paper/src/main/java", "common/src/main/java"]
++
++        }
++    }
+ }
+diff --git a/node_modules/react-native-gesture-handler/android/build/generated/source/buildConfig/debug/com/swmansion/gesturehandler/BuildConfig.java b/node_modules/react-native-gesture-handler/android/build/generated/source/buildConfig/debug/com/swmansion/gesturehandler/BuildConfig.java
+new file mode 100644
+index 0000000..1774a18
+--- /dev/null
++++ b/node_modules/react-native-gesture-handler/android/build/generated/source/buildConfig/debug/com/swmansion/gesturehandler/BuildConfig.java
+@@ -0,0 +1,14 @@
++/**
++ * Automatically generated file. DO NOT MODIFY
++ */
++package com.swmansion.gesturehandler;
++
++public final class BuildConfig {
++  public static final boolean DEBUG = Boolean.parseBoolean("true");
++  public static final String LIBRARY_PACKAGE_NAME = "com.swmansion.gesturehandler";
++  public static final String BUILD_TYPE = "debug";
++  // Field from default config.
++  public static final boolean IS_NEW_ARCHITECTURE_ENABLED = false;
++  // Field from default config.
++  public static final int REACT_NATIVE_MINOR_VERSION = 75;
++}
+diff --git a/node_modules/react-native-gesture-handler/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json b/node_modules/react-native-gesture-handler/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json
+new file mode 100644
+index 0000000..9e26dfe
+--- /dev/null
++++ b/node_modules/react-native-gesture-handler/android/build/intermediates/annotation_processor_list/debug/javaPreCompileDebug/annotationProcessors.json
+@@ -0,0 +1 @@
++{}
+\ No newline at end of file
+diff --git a/node_modules/react-native-gesture-handler/android/build/intermediates/annotations_typedef_file/debug/extractDebugAnnotations/typedefs.txt b/node_modules/react-native-gesture-handler/android/build/intermediates/annotations_typedef_file/debug/extractDebugAnnotations/typedefs.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/react-native-gesture-handler/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar b/node_modules/react-native-gesture-handler/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar
+new file mode 100644
+index 0000000..82be33a
+Binary files /dev/null and b/node_modules/react-native-gesture-handler/android/build/intermediates/compile_r_class_jar/debug/generateDebugRFile/R.jar differ
+diff --git a/node_modules/react-native-gesture-handler/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt b/node_modules/react-native-gesture-handler/android/build/intermediates/compile_symbol_list/debug/generateDebugRFile/R.txt
+new file mode 100644
+index 0000000..e69de29
+diff --git a/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties b/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+new file mode 100644
+index 0000000..562d665
+--- /dev/null
++++ b/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/debug/packageDebugResources/compile-file-map.properties
+@@ -0,0 +1 @@
++#Sat Oct 25 22:29:23 CST 2025
+diff --git a/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml b/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+new file mode 100644
+index 0000000..0b3c539
+--- /dev/null
++++ b/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/debug/packageDebugResources/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="C:\app\futbolchapin\node_modules\react-native-gesture-handler\android\src\main\res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="C:\app\futbolchapin\node_modules\react-native-gesture-handler\android\src\main\res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="C:\app\futbolchapin\node_modules\react-native-gesture-handler\android\src\debug\res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="debug" generated-set="debug$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="C:\app\futbolchapin\node_modules\react-native-gesture-handler\android\src\debug\res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="C:\app\futbolchapin\node_modules\react-native-gesture-handler\android\build\generated\res\resValues\debug"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="C:\app\futbolchapin\node_modules\react-native-gesture-handler\android\build\generated\res\resValues\debug"/></dataSet><mergedItems/></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml b/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml
+new file mode 100644
+index 0000000..5035791
+--- /dev/null
++++ b/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/mergeDebugJniLibFolders/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="C:\app\futbolchapin\node_modules\react-native-gesture-handler\android\src\main\jniLibs"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="C:\app\futbolchapin\node_modules\react-native-gesture-handler\android\src\debug\jniLibs"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/mergeDebugShaders/merger.xml b/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/mergeDebugShaders/merger.xml
+new file mode 100644
+index 0000000..39cb0ae
+--- /dev/null
++++ b/node_modules/react-native-gesture-handler/android/build/intermediates/incremental/mergeDebugShaders/merger.xml
+@@ -0,0 +1,2 @@
++<?xml version="1.0" encoding="utf-8"?>
++<merger version="3"><dataSet config="main" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="C:\app\futbolchapin\node_modules\react-native-gesture-handler\android\src\main\shaders"/></dataSet><dataSet config="debug" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="C:\app\futbolchapin\node_modules\react-native-gesture-handler\android\src\debug\shaders"/></dataSet></merger>
+\ No newline at end of file
+diff --git a/node_modules/react-native-gesture-handler/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt b/node_modules/react-native-gesture-handler/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt
+new file mode 100644
+index 0000000..78ac5b8
+--- /dev/null
++++ b/node_modules/react-native-gesture-handler/android/build/intermediates/local_only_symbol_list/debug/parseDebugLocalResources/R-def.txt
+@@ -0,0 +1,2 @@
++R_DEF: Internal format may change without notice
++local
+diff --git a/node_modules/react-native-gesture-handler/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt b/node_modules/react-native-gesture-handler/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
+new file mode 100644
+index 0000000..08f4ebe
+--- /dev/null
++++ b/node_modules/react-native-gesture-handler/android/build/intermediates/nested_resources_validation_report/debug/generateDebugResources/nestedResourcesValidationReport.txt
+@@ -0,0 +1 @@
++0 Warning/Error
+\ No newline at end of file
+diff --git a/node_modules/react-native-gesture-handler/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt b/node_modules/react-native-gesture-handler/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
+new file mode 100644
+index 0000000..3bd36e7
+--- /dev/null
++++ b/node_modules/react-native-gesture-handler/android/build/intermediates/symbol_list_with_package_name/debug/generateDebugRFile/package-aware-r.txt
+@@ -0,0 +1 @@
++com.swmansion.gesturehandler
+diff --git a/node_modules/react-native-gesture-handler/android/fabric/src/main/java/com/swmansion/gesturehandler/RNGestureHandlerComponentsRegistry.java b/node_modules/react-native-gesture-handler/android/fabric/src/main/java/com/swmansion/gesturehandler/RNGestureHandlerComponentsRegistry.java
+deleted file mode 100644
+index 44f6fc6..0000000
+--- a/node_modules/react-native-gesture-handler/android/fabric/src/main/java/com/swmansion/gesturehandler/RNGestureHandlerComponentsRegistry.java
++++ /dev/null
+@@ -1,29 +0,0 @@
+-package com.swmansion.gesturehandler.react;
+-
+-import com.facebook.jni.HybridData;
+-import com.facebook.proguard.annotations.DoNotStrip;
+-import com.facebook.react.fabric.ComponentFactory;
+-import com.facebook.soloader.SoLoader;
+-
+-@DoNotStrip
+-public class RNGestureHandlerComponentsRegistry {
+-  static {
+-    SoLoader.loadLibrary("fabricjni");
+-    SoLoader.loadLibrary("gesturehandler");
+-  }
+-
+-  @DoNotStrip private final HybridData mHybridData;
+-
+-  @DoNotStrip
+-  private native HybridData initHybrid(ComponentFactory componentFactory);
+-
+-  @DoNotStrip
+-  private RNGestureHandlerComponentsRegistry(ComponentFactory componentFactory) {
+-    mHybridData = initHybrid(componentFactory);
+-  }
+-
+-  @DoNotStrip
+-  public static RNGestureHandlerComponentsRegistry register(ComponentFactory componentFactory) {
+-    return new RNGestureHandlerComponentsRegistry(componentFactory);
+-  }
+-}
+diff --git a/node_modules/react-native-gesture-handler/android/fabric/src/main/java/com/swmansion/gesturehandler/ReactContextExtensions.kt b/node_modules/react-native-gesture-handler/android/fabric/src/main/java/com/swmansion/gesturehandler/ReactContextExtensions.kt
+deleted file mode 100644
+index cd1fd84..0000000
+--- a/node_modules/react-native-gesture-handler/android/fabric/src/main/java/com/swmansion/gesturehandler/ReactContextExtensions.kt
++++ /dev/null
+@@ -1,14 +0,0 @@
+-package com.swmansion.gesturehandler
+-
+-import android.annotation.SuppressLint
+-import com.facebook.react.bridge.ReactContext
+-import com.facebook.react.fabric.FabricUIManager
+-import com.facebook.react.uimanager.UIManagerHelper
+-import com.facebook.react.uimanager.common.UIManagerType
+-import com.facebook.react.uimanager.events.Event
+-
+-fun ReactContext.dispatchEvent(event: Event<*>) {
+-  @SuppressLint("WrongConstant")
+-  val fabricUIManager = UIManagerHelper.getUIManager(this, UIManagerType.FABRIC) as FabricUIManager
+-  fabricUIManager.eventDispatcher.dispatchEvent(event)
+-}
+diff --git a/node_modules/react-native-gesture-handler/android/nosvg/src/main/java/com/swmansion/gesturehandler/RNSVGHitTester.kt b/node_modules/react-native-gesture-handler/android/nosvg/src/main/java/com/swmansion/gesturehandler/RNSVGHitTester.kt
+deleted file mode 100644
+index 6c4aedd..0000000
+--- a/node_modules/react-native-gesture-handler/android/nosvg/src/main/java/com/swmansion/gesturehandler/RNSVGHitTester.kt
++++ /dev/null
+@@ -1,13 +0,0 @@
+-package com.swmansion.gesturehandler
+-
+-import android.view.View
+-
+-class RNSVGHitTester {
+-  companion object {
+-    @Suppress("UNUSED_PARAMETER")
+-    fun isSvgElement(view: Any) = false
+-
+-    @Suppress("UNUSED_PARAMETER")
+-    fun hitTest(view: View, posX: Float, posY: Float) = false
+-  }
+-}
+diff --git a/node_modules/react-native-gesture-handler/android/reanimated/src/main/java/com/swmansion/gesturehandler/ReanimatedEventDispatcher.kt b/node_modules/react-native-gesture-handler/android/reanimated/src/main/java/com/swmansion/gesturehandler/ReanimatedEventDispatcher.kt
+deleted file mode 100644
+index a7bf6aa..0000000
+--- a/node_modules/react-native-gesture-handler/android/reanimated/src/main/java/com/swmansion/gesturehandler/ReanimatedEventDispatcher.kt
++++ /dev/null
+@@ -1,17 +0,0 @@
+-package com.swmansion.gesturehandler
+-
+-import com.facebook.react.bridge.ReactContext
+-import com.facebook.react.uimanager.events.Event
+-import com.swmansion.reanimated.ReanimatedModule
+-
+-class ReanimatedEventDispatcher {
+-  private var reanimatedModule: ReanimatedModule? = null
+-
+-  fun <T : Event<T>> sendEvent(event: T, reactApplicationContext: ReactContext) {
+-    if (reanimatedModule == null) {
+-      reanimatedModule = reactApplicationContext.getNativeModule(ReanimatedModule::class.java)
+-    }
+-
+-    reanimatedModule?.nodesManager?.onEventDispatch(event)
+-  }
+-}
+diff --git a/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/RNGestureHandlerPackage.java b/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/RNGestureHandlerPackage.java
+new file mode 100644
+index 0000000..6b2299d
+--- /dev/null
++++ b/node_modules/react-native-gesture-handler/android/src/main/java/com/swmansion/gesturehandler/RNGestureHandlerPackage.java
+@@ -0,0 +1,51 @@
++package com.swmansion.gesturehandler;
++
++import androidx.annotation.NonNull;
++import com.facebook.react.ReactPackage;
++import com.facebook.react.bridge.NativeModule;
++import com.facebook.react.bridge.ReactApplicationContext;
++import com.facebook.react.uimanager.ViewManager;
++import java.util.Collections;
++import java.util.ArrayList;
++import java.util.List;
++
++public class RNGestureHandlerPackage implements ReactPackage {
++
++  @NonNull
++  @Override
++  public List<NativeModule> createNativeModules(@NonNull ReactApplicationContext reactContext) {
++    // No usamos RNGestureHandlerModule (Kotlin desactivado)
++    return Collections.emptyList();
++  }
++
++  @NonNull
++  @Override
++  public List<ViewManager> createViewManagers(@NonNull ReactApplicationContext reactContext) {
++    List<ViewManager> managers = new ArrayList<>();
++
++    // Intento 1: paquete más común en RNGH 2.x
++    try {
++      Class<?> btn = Class.forName("com.swmansion.gesturehandler.react.RNGestureHandlerButtonViewManager");
++      managers.add((ViewManager) btn.getDeclaredConstructor().newInstance());
++    } catch (Throwable ignored) {}
++
++    try {
++      Class<?> root = Class.forName("com.swmansion.gesturehandler.react.RNGestureHandlerRootViewManager");
++      managers.add((ViewManager) root.getDeclaredConstructor().newInstance());
++    } catch (Throwable ignored) {}
++
++    // Intento 2: variantes posibles (por si el paquete/nombre difiere)
++    if (managers.isEmpty()) {
++      try {
++        Class<?> btn = Class.forName("com.swmansion.gesturehandler.RNGestureHandlerButtonViewManager");
++        managers.add((ViewManager) btn.getDeclaredConstructor().newInstance());
++      } catch (Throwable ignored) {}
++      try {
++        Class<?> root = Class.forName("com.swmansion.gesturehandler.RNGestureHandlerRootViewManager");
++        managers.add((ViewManager) root.getDeclaredConstructor().newInstance());
++      } catch (Throwable ignored) {}
++    }
++
++    return managers;
++  }
++}

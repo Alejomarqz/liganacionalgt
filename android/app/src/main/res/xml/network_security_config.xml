@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+  <!-- Permite HTTP claro solo para estos dominios en desarrollo -->
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="true">futbolchapin.net</domain>
+    <domain includeSubdomains="true">api-chapin.herokuapp.com</domain>
+  </domain-config>
+</network-security-config>
