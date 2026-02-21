@@ -78,3 +78,18 @@ release
 
 .env
 .yarn
+
+# Certificados / llaves (NO subir)
+*.p12
+*.p8
+*.cer
+*.crt
+*.pem
+*.mobileprovision
+
+# Xcode env
+ios/.xcode.env
+ios/.xcode.env.local
+
+# Android: NO trackear assets metidos por error (node_modules_* dentro de res)
+android/app/src/main/res/**/node_modules_*
