@@ -799,16 +799,14 @@ safeShowInterstitial = async (timeoutMs = 900) => {
 
         <View style={styles.headerFixed}>
   <Header
-    navigation={this.props.navigation}
-    showSearch
-    title="Partidos de hoy"
-    onSearchPress={() => this.setState({ showTeamSearch: true })}
-
-    showSettings
-    onSettingsPress={() => this.props.navigation.navigate('Settings')}
-
-    disableBack
-  />
+  navigation={this.props.navigation}
+  showLogo
+  showSearch
+  onSearchPress={() => this.setState({ showTeamSearch: true })}
+  showSettings
+  onSettingsPress={() => this.props.navigation.navigate('Settings')}
+  disableBack
+/>
 </View>
 
         <View style={styles.content}>
