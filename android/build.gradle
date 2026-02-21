@@ -1,0 +1,45 @@
+// Top-level build file for Fútbol Chapín (RN 0.79.2 + NDK r28)
+
+buildscript {
+    ext {
+        buildToolsVersion = "35.0.0"
+        minSdkVersion     = 24
+        compileSdkVersion = 35
+        targetSdkVersion  = 35
+
+        // ✅ NDK r28 (16 KiB page-size ready)
+        ndkVersion  = "28.0.12433566"
+
+        // ✅ Kotlin recomendado para RN 0.79
+        kotlinVersion = "1.9.25"
+    }
+
+    repositories {
+        google()
+        mavenCentral()   // 👈 necesario para RN 0.79 (react-bom / hermes-android)
+    }
+
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.6.1")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        classpath("com.google.gms:google-services:4.4.3")
+    }
+}
+
+/**
+ * ⚙️ React Native Gradle Plugin
+ * Usamos 'plugins' para que no choque con settings.gradle
+ * (RepositoriesMode.PREFER_SETTINGS)
+ */
+plugins {
+    id("com.facebook.react.rootproject") apply false
+}
+apply plugin: "com.facebook.react.rootproject"
+
+// 🔧 Forzar NDK r28 en todos los subproyectos (evita overrides en node_modules)
+gradle.beforeProject { Project p ->
+    try {
+        p.extensions.extraProperties.set("android.ndkVersion", "28.0.12433566")
+    } catch (ignored) { }
+}

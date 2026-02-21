@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "196740496415",
+    "project_id": "futbolchapin-firestore",
+    "storage_bucket": "futbolchapin-firestore.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:196740496415:android:80da36ba5bf7514c7a692a",
+        "android_client_info": {
+          "package_name": "com.chapinpro.followers"
+
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3k0wMIsLexM0cau7DeqqPvxGtj6X_0Z4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:196740496415:android:6763986b337d93a37a692a",
+        "android_client_info": {
+          "package_name": "com.chapinpro.followers"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA3k0wMIsLexM0cau7DeqqPvxGtj6X_0Z4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

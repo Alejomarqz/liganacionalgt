@@ -1,0 +1,39 @@
+diff --git a/node_modules/react-native-google-mobile-ads/android/build.gradle b/node_modules/react-native-google-mobile-ads/android/build.gradle
+index 8a31e69..92834cc 100644
+--- a/node_modules/react-native-google-mobile-ads/android/build.gradle
++++ b/node_modules/react-native-google-mobile-ads/android/build.gradle
+@@ -99,6 +99,11 @@ if (!appJSONGoogleMobileAdsAppIDString) {
+ }
+ 
+ android {
++  namespace "io.invertase.googlemobileads"
++
++  buildFeatures {
++    buildConfig true
++  }
+   defaultConfig {
+     multiDexEnabled true
+     manifestPlaceholders = [
+diff --git a/node_modules/react-native-google-mobile-ads/src/specs/modules/NativeGoogleMobileAdsNativeModule.ts b/node_modules/react-native-google-mobile-ads/src/specs/modules/NativeGoogleMobileAdsNativeModule.ts
+index 46c98ec..b0a7079 100644
+--- a/node_modules/react-native-google-mobile-ads/src/specs/modules/NativeGoogleMobileAdsNativeModule.ts
++++ b/node_modules/react-native-google-mobile-ads/src/specs/modules/NativeGoogleMobileAdsNativeModule.ts
+@@ -21,8 +21,7 @@ import type {
+   Double,
+   Float,
+   UnsafeObject,
+-  EventEmitter,
+-} from 'react-native/Libraries/Types/CodegenTypes';
++  } from 'react-native/Libraries/Types/CodegenTypes';
+ 
+ export type NativeAdProps = {
+   responseId: string;
+@@ -58,7 +57,7 @@ export type NativeAdEventPayload = {
+ export interface Spec extends TurboModule {
+   load(adUnitId: string, requestOptions: UnsafeObject): Promise<NativeAdProps>;
+   destroy(responseId: string): void;
+-  readonly onAdEvent: EventEmitter<NativeAdEventPayload>;
++  onAdEvent(event: NativeAdEventPayload): void;
+ }
+ 
+ export default TurboModuleRegistry.getEnforcing<Spec>('RNGoogleMobileAdsNativeModule');

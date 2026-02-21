@@ -1,0 +1,15 @@
+{
+  "react-native": {
+    "admob_android_app_id": "ca-app-pub-3710973902746391~5885286658",
+    "admob_ios_app_id": "ca-app-pub-3710973902746391~9475502715",
+
+    "android_google_services_file": "android/app/google-services.json",
+
+    "android_secondary_apps": [
+      {
+        "app_name": "followers",
+        "google_services_file": "android/app/src/followers/google-services.json"
+      }
+    ]
+  }
+}

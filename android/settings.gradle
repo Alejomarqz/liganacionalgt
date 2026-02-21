@@ -1,0 +1,44 @@
+pluginManagement {
+  repositories {
+    gradlePluginPortal()
+    mavenCentral()
+    google()
+  }
+  includeBuild("../node_modules/@react-native/gradle-plugin")
+}
+
+plugins {
+  id("com.facebook.react.settings")
+}
+
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+  ex.autolinkLibrariesFromCommand()
+}
+
+dependencyResolutionManagement {
+  // Puedes dejar PREFER_SETTINGS, pero yo prefiero FAIL_ON_PROJECT_REPOS.
+  // Si lo cambias, hazlo así:
+  // repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+  repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+  repositories {
+    mavenCentral()
+    google()
+
+    // Si quieres mantener tu bloque exclusivo para RN, ok:
+    exclusiveContent {
+      forRepository {
+        maven {
+          name = "ReactMavenCentral"
+          url = uri("https://repo.maven.apache.org/maven2/")
+        }
+      }
+      filter {
+        includeModule("com.facebook.react", "react-android")
+        includeModule("com.facebook.react", "hermes-android")
+      }
+    }
+  }
+}
+
+rootProject.name = "chapin"
+include(":app")

@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "452624781637",
+    "firebase_url": "https://futbolchapin-ae164.firebaseio.com",
+    "project_id": "futbolchapin-ae164",
+    "storage_bucket": "futbolchapin-ae164.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:452624781637:android:40c85e0cd4268f84",
+        "android_client_info": {
+          "package_name": "com.chapinpro"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "452624781637-p1s3cj4bi86hifsrqi7c2ssdt4qhtejf.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDL4oO1AUS5nxbq_Z9o71u_9bCR1wDHM7I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "452624781637-p1s3cj4bi86hifsrqi7c2ssdt4qhtejf.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "452624781637-g6gli6l4j9icvtdhv80c7u7vfstetloe.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "org.reactjs.native.futbol.chapin",
+                "app_store_id": "1453470361"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
