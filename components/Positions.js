@@ -15,12 +15,12 @@ import Header from './Header';
 import AdFooter from '../ads/AdFooter';
 import FooterTabs from './FooterTabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
 import LogoImg from './LogoImg';
 import { changeName } from '../utils/changeName';
 import TeamSearchModal from './TeamSearchModal';
 import analytics from '@react-native-firebase/analytics';
 import { useTheme } from '../utils/ThemeContext';
+import { BRAND } from '../utils/theme';
 
 import { API_CUSTOM_DIGITAL } from '@env';
 
@@ -28,24 +28,22 @@ const { width } = Dimensions.get('window');
 
 const COL = {
   RANK: 32,
-  PTS: 40,
-  NUM: 30,
-  DIF: 38,
+  PTS:  40,
+  NUM:  30,
+  DIF:  38,
   ICON: 26,
-  GAP: 6,
+  GAP:  6,
 };
-const RIGHT_W = COL.PTS + 4 * COL.NUM + COL.DIF; // PTS + J + G + E + P + DIF
-const CUM_W = COL.PTS + COL.NUM + COL.DIF; // PTS + J + DIF
-const TEAM_GUTTER = 20;
-const RIGHT_INNER_PAD = -10; // gutter hacia el borde derecho
-const TAB_H = 58;
-const BANNER_PAD = 120; // alto aprox. de banner anchored adaptive
-const padBottom = TAB_H + 6 + BANNER_PAD;
+const RIGHT_W    = COL.PTS + 4 * COL.NUM + COL.DIF;
+const CUM_W      = COL.PTS + COL.NUM + COL.DIF;
+const TEAM_GUTTER     = 20;
+const RIGHT_INNER_PAD = -10;
+const TAB_H      = 58;
+const BANNER_PAD = 120;
+const padBottom  = TAB_H + 6 + BANNER_PAD;
 
-// === Helpers numéricos con fallback ===
-const num = (v) => (v == null || v === '' ? 0 : parseInt(v, 10) || 0);
-
-/** pick(row, ['puntosactual','puntos']) => primer valor no vacío, parseado */
+/* ─── helpers ─────────────────────────────── */
+const num  = (v) => (v == null || v === '' ? 0 : parseInt(v, 10) || 0);
 const pick = (row, keys = []) => {
   for (const k of keys) {
     const v = row?.[k]?.[0];
@@ -53,36 +51,28 @@ const pick = (row, keys = []) => {
   }
   return 0;
 };
-
-/** A(row, 'ganados') => ganadosactual || ganados */
-const A = (row, base) => pick(row, [`${base}actual`, base]);
-
-/** Puntos: usa puntosactual || puntos; si no vienen, calcula 3*G + E */
+const A          = (row, base) => pick(row, [`${base}actual`, base]);
 const computePTS = (row) => {
   const pv = pick(row, ['puntosactual', 'puntos']);
   if (pv) return pv;
-  const w = A(row, 'ganados');
-  const d = A(row, 'empatados');
-  return w * 3 + d;
+  return A(row, 'ganados') * 3 + A(row, 'empatados');
 };
 
+/* ─── COMPONENT ───────────────────────────── */
 export default function Positions({ navigation }) {
-  const [standings, setStandings] = useState([]);
+  const [standings,    setStandings]    = useState([]);
   const [standingsCum, setStandingsCum] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showCum, setShowCum] = useState(true); // true = Acumulada
+  const [loading,      setLoading]      = useState(true);
+  const [showCum,      setShowCum]      = useState(true);
   const [showTeamSearch, setShowTeamSearch] = useState(false);
+  const [footerVersion,  setFooterVersion]  = useState(0);
 
-  // 👉 NUEVO: contador para forzar remount del footer al cerrar el modal
-  const [footerVersion, setFooterVersion] = useState(0);
-
-  const insets = useSafeAreaInsets();
+  const insets    = useSafeAreaInsets();
   const safeBottom = Math.max(insets?.bottom || 0, 0);
-
   const { theme } = useTheme();
-  const colors = theme.colors;
+  const colors    = theme.colors;
+  const isDark    = theme.mode === 'dark';
 
-  // Analytics: screen_view
   useEffect(() => {
     (async () => {
       try {
@@ -99,18 +89,10 @@ export default function Positions({ navigation }) {
       .then((r) => r.json())
       .then((result) => {
         const teams = result?.posiciones?.equipo || [];
-        const cum = [...teams];
-
-        // Ordenar acumulada por puntos y dif (usando helpers con fallback)
-        cum.sort((rowA, rowB) => {
-          const p1 = computePTS(rowA);
-          const p2 = computePTS(rowB);
-          if (p1 !== p2) return p2 - p1;
-          const dg1 = A(rowA, 'difgol');
-          const dg2 = A(rowB, 'difgol');
-          return dg2 - dg1;
+        const cum   = [...teams].sort((a, b) => {
+          const diff = computePTS(b) - computePTS(a);
+          return diff !== 0 ? diff : A(b, 'difgol') - A(a, 'difgol');
         });
-
         setStandings(teams);
         setStandingsCum(cum);
       })
@@ -118,23 +100,65 @@ export default function Positions({ navigation }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const data = showCum ? standingsCum : standings;
+  const data  = showCum ? standingsCum : standings;
   const total = data.length;
 
-  // 👉 NUEVO: cerrar modal + refrescar footer
   const handleCloseSearch = () => {
     setShowTeamSearch(false);
     setFooterVersion((v) => v + 1);
   };
 
+  /* ── Cabecera sticky de la tabla ── */
+  const TableHeader = (
+    <View style={{ backgroundColor: colors.cardBg }}>
+      {/* Línea decorativa azul arriba */}
+      <View style={[styles.tableTopLine, { backgroundColor: BRAND.primary }]} />
+
+      <View style={[styles.tableHeader, { backgroundColor: colors.cardBg }]}>
+        {/* # */}
+        <View style={{ width: COL.RANK }}>
+          <Text style={[styles.thText, { color: colors.textMuted }]}>#</Text>
+        </View>
+
+        {/* Equipo */}
+        <View style={{ flex: 1, paddingRight: TEAM_GUTTER }}>
+          <Text style={[styles.thTextLeft, { color: colors.textMuted }]}>
+            Equipo
+          </Text>
+        </View>
+
+        {/* Stats */}
+        {showCum ? (
+          <View style={{ width: CUM_W, flexDirection: 'row', marginRight: RIGHT_INNER_PAD }}>
+            {['Pts', 'J', 'Dif'].map((h, i) => (
+              <View key={h} style={{ width: [COL.PTS, COL.NUM, COL.DIF][i], alignItems: 'center' }}>
+                <Text style={[styles.thText, { color: colors.textMuted }, h === 'Pts' && styles.thPts]}>
+                  {h}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={{ width: RIGHT_W, flexDirection: 'row', marginRight: RIGHT_INNER_PAD }}>
+            {[['Pts', COL.PTS], ['J', COL.NUM], ['G', COL.NUM], ['E', COL.NUM], ['P', COL.NUM], ['Dif', COL.DIF]].map(([h, w]) => (
+              <View key={h} style={{ width: w, alignItems: 'center' }}>
+                <Text style={[styles.thText, { color: colors.textMuted }, h === 'Pts' && styles.thPts]}>
+                  {h}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+
+      {/* Divisor */}
+      <View style={{ height: 1, backgroundColor: colors.cardBorder, width }} />
+    </View>
+  );
+
   return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.screenBg,
-        position: 'relative',
-      }}
-    >
+    <View style={{ flex: 1, backgroundColor: colors.screenBg, position: 'relative' }}>
+
       <Header
         title="Tabla de Posiciones"
         navigation={navigation}
@@ -143,407 +167,135 @@ export default function Positions({ navigation }) {
       />
 
       {loading ? (
-        <View
-          style={{
-            flex: 1,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <ActivityIndicator size="large" color={colors.accent} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator size="large" color={BRAND.primary} />
         </View>
       ) : (
         <View style={{ flex: 1, minHeight: 0 }}>
-          {/* Selector (fuera del scroll) */}
-          <View
-            style={[
-              styles.selectorWrap,
-              {
-                backgroundColor: colors.cardBg,
-                borderColor: colors.cardBorder,
-              },
-            ]}
-          >
-            <TouchableOpacity
-              style={[
-                styles.selectorBtn,
-                showCum && { backgroundColor: colors.accent },
-              ]}
-              onPress={async () => {
-                setShowCum(true);
-                try {
-                  await analytics().logEvent('positions_tab', {
-                    table: 'Acumulada',
-                  });
-                } catch {}
-              }}
-            >
-              <Text
-                style={[
-                  styles.selectorText,
-                  { color: showCum ? '#fff' : colors.text },
-                ]}
-              >
-                Acumulada
-              </Text>
-            </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.selectorBtn,
-                !showCum && { backgroundColor: colors.accent },
-              ]}
-              onPress={async () => {
-                setShowCum(false);
-                try {
-                  await analytics().logEvent('positions_tab', {
-                    table: 'Apertura',
-                  });
-                } catch {}
-              }}
-            >
-              <Text
-                style={[
-                  styles.selectorText,
-                  { color: !showCum ? '#fff' : colors.text },
-                ]}
-              >
-                Apertura
-              </Text>
-            </TouchableOpacity>
+          {/* ── Selector Acumulada / Apertura ── */}
+          <View style={[styles.selectorWrap, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+            {[
+              { label: 'Acumulada', val: true  },
+              { label: 'Apertura',  val: false },
+            ].map(({ label, val }) => {
+              const active = showCum === val;
+              return (
+                <TouchableOpacity
+                  key={label}
+                  style={[
+                    styles.selectorBtn,
+                    active && { backgroundColor: BRAND.primary },
+                  ]}
+                  onPress={async () => {
+                    setShowCum(val);
+                    try {
+                      await analytics().logEvent('positions_tab', { table: label });
+                    } catch {}
+                  }}
+                >
+                  <Text style={[
+                    styles.selectorText,
+                    { color: active ? '#fff' : colors.textMuted },
+                    active && styles.selectorTextActive,
+                  ]}>
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
-          {/* Lista: cabecera sticky + filas scrolleables */}
+          {/* ── Lista ── */}
           <FlatList
             style={{ flex: 1 }}
             data={data}
-            keyExtractor={(item, index) =>
-              String(item?.id?.[0] ?? index)
-            }
+            keyExtractor={(item, index) => String(item?.id?.[0] ?? index)}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: padBottom }}
             scrollIndicatorInsets={{ bottom: padBottom }}
             keyboardShouldPersistTaps="handled"
             stickyHeaderIndices={[0]}
-            ListHeaderComponent={
-              // CABECERA DE TABLA (STICKY)
-              <View
-                style={{
-                  backgroundColor: colors.cardBg,
-                }}
-              >
-                <View
-                  style={[
-                    styles.tableHeader,
-                    { backgroundColor: colors.cardBg },
-                  ]}
-                >
-                  <View
-                    style={[styles.thCol, { width: COL.RANK }]}
-                  >
-                    <Text
-                      style={[
-                        styles.thText,
-                        { color: colors.text },
-                      ]}
-                    >
-                      #
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      flex: 1,
-                      paddingRight: TEAM_GUTTER,
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.thTextLeft,
-                        { color: colors.text },
-                      ]}
-                    >
-                      Equipo
-                    </Text>
-                  </View>
-
-                  {showCum ? (
-                    <View
-                      style={{
-                        width: CUM_W,
-                        flexDirection: 'row',
-                        marginRight: RIGHT_INNER_PAD,
-                      }}
-                    >
-                      <View
-                        style={[
-                          styles.thCol,
-                          { width: COL.PTS },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.thText,
-                            { color: colors.text },
-                          ]}
-                        >
-                          Pts
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.thCol,
-                          { width: COL.NUM },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.thText,
-                            { color: colors.text },
-                          ]}
-                        >
-                          J
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.thCol,
-                          { width: COL.DIF },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.thText,
-                            { color: colors.text },
-                          ]}
-                        >
-                          Dif
-                        </Text>
-                      </View>
-                    </View>
-                  ) : (
-                    <View
-                      style={{
-                        width: RIGHT_W,
-                        flexDirection: 'row',
-                        marginRight: RIGHT_INNER_PAD,
-                      }}
-                    >
-                      <View
-                        style={[
-                          styles.thCol,
-                          { width: COL.PTS },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.thText,
-                            { color: colors.text },
-                          ]}
-                        >
-                          Pts
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.thCol,
-                          { width: COL.NUM },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.thText,
-                            { color: colors.text },
-                          ]}
-                        >
-                          J
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.thCol,
-                          { width: COL.NUM },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.thText,
-                            { color: colors.text },
-                          ]}
-                        >
-                          G
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.thCol,
-                          { width: COL.NUM },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.thText,
-                            { color: colors.text },
-                          ]}
-                        >
-                          E
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.thCol,
-                          { width: COL.NUM },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.thText,
-                            { color: colors.text },
-                          ]}
-                        >
-                          P
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.thCol,
-                          { width: COL.DIF },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.thText,
-                            { color: colors.text },
-                          ]}
-                        >
-                          Dif
-                        </Text>
-                      </View>
-                    </View>
-                  )}
-                </View>
-                <View
-                  style={{
-                    height: 1,
-                    backgroundColor: colors.cardBorder,
-                    width,
-                  }}
-                />
-              </View>
-            }
+            ListHeaderComponent={TableHeader}
             renderItem={({ item, index }) => {
-              const teamId = item?.id?.[0]
-                ? String(item.id[0])
-                : null;
-              const name = changeName(
-                (item?.nombre?.[0] || '').trim()
-              );
+              const teamId = item?.id?.[0] ? String(item.id[0]) : null;
+              const name   = changeName((item?.nombre?.[0] || '').trim());
 
               const PTS = computePTS(item);
-              const J = A(item, 'jugados');
-              const G = A(item, 'ganados');
-              const E = A(item, 'empatados');
-              const P = A(item, 'perdidos');
+              const J   = A(item, 'jugados');
+              const G   = A(item, 'ganados');
+              const E   = A(item, 'empatados');
+              const P   = A(item, 'perdidos');
               const DIF = A(item, 'difgol');
 
-              const rank = index + 1;
-              const qual = rank <= 8;
-              const bottom = rank >= total - 1;
+              const rank    = index + 1;
+              const qual    = rank <= 8;
+              const bottom  = rank >= total - 1;
 
-              const circleStyle = bottom
-                ? [styles.rankCircle, styles.rankCircleDanger]
+              // Color de la burbuja de posición
+              const bubbleBg = bottom
+                ? BRAND.red
                 : qual
-                ? [styles.rankCircle, styles.rankCircleQual]
-                : [
-                    styles.rankCircle,
-                    {
-                      backgroundColor: colors.cardBg,
-                      borderColor: colors.cardBorder,
-                    },
-                  ];
+                ? BRAND.accent
+                : isDark ? '#2A2D3E' : '#E4E6F0';
 
-              const circleTextStyle = bottom
-                ? [styles.rankText, styles.rankTextDanger]
+              const bubbleTextColor = (qual || bottom)
+                ? '#fff'
+                : colors.textMuted;
+
+              // Fondo de fila especial
+              const rowBg = bottom
+                ? isDark ? 'rgba(232,48,74,0.06)' : 'rgba(232,48,74,0.04)'
                 : qual
-                ? [styles.rankText, styles.rankTextQual]
-                : [
-                    styles.rankText,
-                    { color: colors.text },
-                  ];
-
-              const rowDangerBg =
-                theme.mode === 'dark'
-                  ? 'rgba(220,38,38,0.1)'
-                  : '#FEF2F2';
+                ? isDark ? 'rgba(0,196,140,0.04)' : 'rgba(0,196,140,0.03)'
+                : colors.cardBg;
 
               return (
                 <View>
-                  <View
-                    style={[
-                      styles.teamRow,
-                      {
-                        backgroundColor: colors.cardBg,
-                      },
-                      bottom && {
-                        backgroundColor: rowDangerBg,
-                      },
-                    ]}
-                  >
+                  <View style={[styles.teamRow, { backgroundColor: rowBg }]}>
+
+                    {/* Indicador lateral de color */}
+                    <View style={[
+                      styles.rowIndicator,
+                      { backgroundColor: bottom ? BRAND.red : qual ? BRAND.accent : 'transparent' },
+                    ]} />
+
                     {/* Posición */}
-                    <View style={{ width: COL.RANK }}>
-                      <View style={circleStyle}>
-                        <Text style={circleTextStyle}>
+                    <View style={{ width: COL.RANK, alignItems: 'center' }}>
+                      <View style={[styles.rankBubble, { backgroundColor: bubbleBg }]}>
+                        <Text style={[styles.rankText, { color: bubbleTextColor }]}>
                           {rank}
                         </Text>
                       </View>
                     </View>
 
-                    {/* Logo + Nombre — TOCABLE */}
+                    {/* Logo + Nombre */}
                     <TouchableOpacity
                       activeOpacity={0.7}
                       onPress={async () => {
                         const idNum = Number(teamId);
                         if (!Number.isFinite(idNum)) return;
                         try {
-                          await analytics().logEvent(
-                            'open_team_from_positions',
-                            {
-                              team_id: String(teamId || ''),
-                              team_name: String(name || ''),
-                              rank: Number(rank),
-                              pts: Number(PTS),
-                              table: showCum
-                                ? 'Acumulada'
-                                : 'Apertura',
-                            }
-                          );
+                          await analytics().logEvent('open_team_from_positions', {
+                            team_id:   String(teamId || ''),
+                            team_name: String(name || ''),
+                            rank:      Number(rank),
+                            pts:       Number(PTS),
+                            table:     showCum ? 'Acumulada' : 'Apertura',
+                          });
                         } catch {}
-                        navigation?.push?.(
-                          'TeamScreen',
-                          {
-                            teamId: idNum,
-                            scope: 'guatemala',
-                            tab: 'Resumen',
-                            teamName: name,
-                          }
-                        );
+                        navigation?.push?.('TeamScreen', {
+                          teamId:   idNum,
+                          scope:    'guatemala',
+                          tab:      'Resumen',
+                          teamName: name,
+                        });
                       }}
-                      style={{
-                        flex: 1,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        paddingRight: TEAM_GUTTER,
-                      }}
+                      style={{ flex: 1, flexDirection: 'row', alignItems: 'center', paddingRight: TEAM_GUTTER }}
                     >
-                      <LogoImg
-                        teamId={teamId}
-                        size={COL.ICON}
-                        style={{ marginRight: COL.GAP }}
-                      />
+                      <LogoImg teamId={teamId} size={COL.ICON} style={{ marginRight: COL.GAP }} />
                       <Text
-                        style={[
-                          styles.tdTeamName,
-                          { color: colors.text },
-                        ]}
+                        style={[styles.tdTeamName, { color: colors.text }]}
                         numberOfLines={1}
                       >
                         {name}
@@ -552,200 +304,79 @@ export default function Positions({ navigation }) {
 
                     {/* Stats */}
                     {showCum ? (
-                      <View
-                        style={{
-                          width: CUM_W,
-                          flexDirection: 'row',
-                          marginRight: RIGHT_INNER_PAD,
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.colNum,
-                            styles.colPts,
-                            {
-                              width: COL.PTS,
-                              color: colors.text,
-                            },
-                          ]}
-                        >
+                      <View style={{ width: CUM_W, flexDirection: 'row', marginRight: RIGHT_INNER_PAD }}>
+                        <Text style={[styles.colPts, { width: COL.PTS, color: qual ? BRAND.primary : colors.text }]}>
                           {PTS}
                         </Text>
-                        <Text
-                          style={[
-                            styles.colNum,
-                            {
-                              width: COL.NUM,
-                              color: colors.text,
-                            },
-                          ]}
-                        >
-                          {J}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.colNum,
-                            {
-                              width: COL.DIF,
-                              color: colors.text,
-                            },
-                          ]}
-                        >
-                          {DIF}
+                        <Text style={[styles.colNum, { width: COL.NUM, color: colors.textMuted }]}>{J}</Text>
+                        <Text style={[styles.colNum, { width: COL.DIF, color: DIF >= 0 ? colors.text : BRAND.red }]}>
+                          {DIF > 0 ? `+${DIF}` : DIF}
                         </Text>
                       </View>
                     ) : (
-                      <View
-                        style={{
-                          width: RIGHT_W,
-                          flexDirection: 'row',
-                          marginRight: RIGHT_INNER_PAD,
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.colNum,
-                            styles.colPts,
-                            {
-                              width: COL.PTS,
-                              color: colors.text,
-                            },
-                          ]}
-                        >
+                      <View style={{ width: RIGHT_W, flexDirection: 'row', marginRight: RIGHT_INNER_PAD }}>
+                        <Text style={[styles.colPts, { width: COL.PTS, color: qual ? BRAND.primary : colors.text }]}>
                           {PTS}
                         </Text>
-                        <Text
-                          style={[
-                            styles.colNum,
-                            {
-                              width: COL.NUM,
-                              color: colors.text,
-                            },
-                          ]}
-                        >
-                          {J}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.colNum,
-                            {
-                              width: COL.NUM,
-                              color: colors.text,
-                            },
-                          ]}
-                        >
-                          {G}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.colNum,
-                            {
-                              width: COL.NUM,
-                              color: colors.text,
-                            },
-                          ]}
-                        >
-                          {E}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.colNum,
-                            {
-                              width: COL.NUM,
-                              color: colors.text,
-                            },
-                          ]}
-                        >
-                          {P}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.colNum,
-                            {
-                              width: COL.DIF,
-                              color: colors.text,
-                            },
-                          ]}
-                        >
-                          {DIF}
+                        <Text style={[styles.colNum, { width: COL.NUM, color: colors.textMuted }]}>{J}</Text>
+                        <Text style={[styles.colNum, { width: COL.NUM, color: colors.textMuted }]}>{G}</Text>
+                        <Text style={[styles.colNum, { width: COL.NUM, color: colors.textMuted }]}>{E}</Text>
+                        <Text style={[styles.colNum, { width: COL.NUM, color: colors.textMuted }]}>{P}</Text>
+                        <Text style={[styles.colNum, { width: COL.DIF, color: DIF >= 0 ? colors.text : BRAND.red }]}>
+                          {DIF > 0 ? `+${DIF}` : DIF}
                         </Text>
                       </View>
                     )}
                   </View>
-                  <View
-                    style={{
-                      height: 1,
-                      backgroundColor: colors.cardBorder,
-                      width,
-                    }}
-                  />
+
+                  {/* Divisor */}
+                  <View style={{ height: 1, backgroundColor: colors.cardBorder, width }} />
                 </View>
               );
             }}
           />
+
+          {/* ── Leyenda ── */}
+          <View style={[styles.legend, { backgroundColor: colors.cardBg, borderTopColor: colors.cardBorder }]}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: BRAND.accent }]} />
+              <Text style={[styles.legendText, { color: colors.textMuted }]}>Liguilla (Top 8)</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: BRAND.red }]} />
+              <Text style={[styles.legendText, { color: colors.textMuted }]}>Descenso</Text>
+            </View>
+          </View>
         </View>
       )}
 
       <TeamSearchModal
         visible={showTeamSearch}
-        onClose={handleCloseSearch}  // 👉 aquí usamos el nuevo handler
+        onClose={handleCloseSearch}
         onSelect={async (team) => {
           try {
             await analytics().logEvent('open_team_from_search', {
-              team_id: String(team?.id ?? ''),
+              team_id:   String(team?.id ?? ''),
               team_name: String(team?.name ?? ''),
-              scope: String(team?.scope ?? 'guatemala'),
+              scope:     String(team?.scope ?? 'guatemala'),
             });
           } catch {}
           navigation.navigate('TeamScreen', {
-            teamId: team.id,
-            scope: team.scope,
+            teamId:   team.id,
+            scope:    team.scope,
             teamName: team.name,
           });
-
-          // 👉 aseguramos que al seleccionar también se cierre correcto
           handleCloseSearch();
         }}
       />
 
-      {/* Footer fijo con Banner y Tabs (overlay) */}
-      <View
-        key={footerVersion}   // 👉 remount cuando cambiamos footerVersion
-        style={[
-          styles.footerFixed,
-          { height: TAB_H + safeBottom },
-        ]}
-      >
-        {/* Banner por encima de los tabs */}
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: TAB_H + safeBottom,
-            zIndex: 20,
-            elevation: 20,
-          }}
-        >
+      {/* Footer fijo */}
+      <View key={footerVersion} style={[styles.footerFixed, { height: TAB_H + safeBottom }]}>
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: TAB_H + safeBottom, zIndex: 20, elevation: 20 }}>
           <AdFooter />
         </View>
-
-        {/* Tabs pegados abajo */}
-        <View
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: TAB_H + safeBottom,
-            zIndex: 10,
-            elevation: 10,
-          }}
-        >
-          <FooterTabs
-            navigation={navigation}
-            routeName="Positions"
-          />
+        <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: TAB_H + safeBottom, zIndex: 10, elevation: 10 }}>
+          <FooterTabs navigation={navigation} routeName="Positions" />
         </View>
       </View>
     </View>
@@ -753,101 +384,130 @@ export default function Positions({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  // Selector estilo Alineaciones (pill centrado)
+  // ── Selector ──
   selectorWrap: {
     flexDirection: 'row',
     alignSelf: 'center',
-    marginVertical: 5,
-    backgroundColor: '#fff', // se sobreescribe con theme
-    borderRadius: 20,
+    marginVertical: 10,
+    borderRadius: 50,
     borderWidth: 1,
-    borderColor: '#0f1235', // se sobreescribe
     overflow: 'hidden',
   },
   selectorBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 20,
+    paddingVertical: 6,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent', // activo se maneja en runtime
   },
   selectorText: {
+    fontFamily: 'Poppins-SemiBold',
     fontSize: 12,
-    fontWeight: 'bold',
+  },
+  selectorTextActive: {
+    fontFamily: 'Poppins-Bold',
   },
 
+  // ── Tabla cabecera ──
+  tableTopLine: {
+    height: 3,
+    width: '100%',
+  },
   tableHeader: {
     flexDirection: 'row',
     paddingHorizontal: 8,
-    paddingVertical: 0,
-    backgroundColor: '#fff', // se sobreescribe
+    paddingVertical: 8,
   },
-  thCol: { alignItems: 'center', justifyContent: 'center' },
   thText: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0b1f3b', // se sobreescribe
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 11,
+    textAlign: 'center',
+    letterSpacing: 0.5,
   },
   thTextLeft: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#0b1f3b', // se sobreescribe
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 11,
+    letterSpacing: 0.5,
+  },
+  thPts: {
+    fontFamily: 'Poppins-Bold',
+    color: BRAND.primary,
   },
 
+  // ── Filas ──
   teamRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 8,
-    backgroundColor: '#fff', // se sobreescribe
-  },
-  tdTeamName: {
-    color: '#111827', // se sobreescribe
-    fontSize: 13,
-    fontWeight: '700',
+    paddingVertical: 9,
+    position: 'relative',
   },
 
-  rankCircle: {
+  // Indicador lateral de color (liguilla / descenso)
+  rowIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 3,
+  },
+
+  // Burbuja de posición
+  rankBubble: {
     width: 22,
     height: 22,
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
   },
-  rankCircleDefault: {
-    backgroundColor: '#fff',
-    borderColor: '#D1D5DB',
+  rankText: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 11,
   },
-  rankCircleQual: {
-    backgroundColor: '#10B981',
-    borderColor: '#059669',
-  },
-  rankCircleDanger: {
-    backgroundColor: '#EF4444',
-    borderColor: '#DC2626',
-  },
-  rankText: { fontSize: 13, fontWeight: '800' },
-  rankTextDefault: { color: '#111827' },
-  rankTextQual: { color: '#fff' },
-  rankTextDanger: { color: '#fff' },
 
-  colNum: {
+  tdTeamName: {
+    fontFamily: 'Poppins-SemiBold',
     fontSize: 13,
-    color: '#111827', // se sobreescribe
+    flex: 1,
+  },
+
+  // Estadísticas
+  colNum: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 13,
     textAlign: 'center',
-    fontWeight: '500',
-    minWidth: 24,
-    ...(Platform.OS === 'ios'
-      ? { fontVariant: ['tabular-nums'] }
-      : null),
+    ...(Platform.OS === 'ios' ? { fontVariant: ['tabular-nums'] } : null),
   },
-  colPts: { fontWeight: '900' },
-
-  teamRowDanger: {
-    backgroundColor: '#FEF2F2',
+  colPts: {
+    fontFamily: 'Poppins-ExtraBold',
+    fontSize: 14,
+    textAlign: 'center',
+    ...(Platform.OS === 'ios' ? { fontVariant: ['tabular-nums'] } : null),
   },
 
+  // ── Leyenda ──
+  legend: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 11,
+  },
+
+  // ── Footer ──
   footerFixed: {
     position: 'absolute',
     left: 0,
