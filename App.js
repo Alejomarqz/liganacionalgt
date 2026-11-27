@@ -59,8 +59,21 @@ import {
 import WelcomeScreen
   from './components/Welcome';
 
+// v3: Home rediseñado sobre la API Liga Nacional GT
 import HomeScreen
-  from './components/Home';
+  from './src/screens/HomeScreen';
+
+import LigaTVScreen
+  from './src/screens/LigaTVScreen';
+
+import {
+  installLocalNotificationRouter,
+  pruneReminders,
+} from './src/notifications/reminders';
+
+import {
+  primeLogos,
+} from './src/api/logoRegistry';
 
 import MatchScreen
   from './components/Match';
@@ -311,6 +324,9 @@ function AppInner() {
       const initApp =
         async () => {
 
+          // Logos oficiales en memoria antes de pintar pantallas legacy
+          primeLogos();
+
           try {
 
             await ensureAnonLogin();
@@ -518,6 +534,15 @@ function AppInner() {
                       navigationRef,
                     );
 
+                    // Recordatorios locales (Notifee): abrir partido / Liga TV al tocar
+                    try {
+                      pruneReminders();
+                      installLocalNotificationRouter(
+                        (name, params) =>
+                          navigationRef.current?.navigate(name, params),
+                      );
+                    } catch {}
+
                   }
                 }
 
@@ -683,6 +708,16 @@ function AppInner() {
                     }
                     options={
                       DETAIL_SCREEN
+                    }
+                  />
+
+
+                  {/* LIGA TV (transmisiones en vivo propias) */}
+
+                  <MainStack.Screen
+                    name="LigaTV"
+                    component={
+                      LigaTVScreen
                     }
                   />
 

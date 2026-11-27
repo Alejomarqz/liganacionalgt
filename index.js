@@ -26,6 +26,13 @@ messaging().setBackgroundMessageHandler(async remoteMessage => {
   }
 });
 
+// === Notifee (recordatorios locales) en segundo plano ===
+// Requerido por Android: sin este handler los toques con la app cerrada se pierden.
+import notifee from '@notifee/react-native';
+notifee.onBackgroundEvent(async () => {
+  // La navegación se resuelve al abrir con getInitialNotification (src/notifications/reminders.js)
+});
+
 /* === Opcional (útil para debug de taps) ===
 messaging().getInitialNotification().then(remoteMessage => {
   if (remoteMessage && __DEV__) {

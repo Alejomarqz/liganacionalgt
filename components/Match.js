@@ -55,7 +55,7 @@ import {
 
 import { withTheme } from '../utils/ThemeContext';
 
-const HERO_BG = require('../resources/home/featured-match-bg.png');
+const HERO_BG = require('../resources/home/featured-match-bg.jpg');
 
 const BLUE = '#285FFF';
 const WHITE = '#FFFFFF';

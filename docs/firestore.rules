@@ -1,0 +1,33 @@
+// docs/firestore.rules — reglas sugeridas para Liga TV (fusionar con las reglas actuales)
+// Publicar en: Firebase Console → Firestore → Reglas
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Configuración de Liga TV: la app sólo lee; se edita desde la consola.
+    match /app_config/{doc} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Chat en vivo: cualquiera (anónimo autenticado) lee; escribe sólo su propio
+    // mensaje, con texto corto y sin poder editar/borrar mensajes ajenos.
+    match /liga_tv_chat/{msgId} {
+      allow read: if true;
+      allow create: if request.auth != null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 140
+        && request.resource.data.nick is string
+        && request.resource.data.nick.size() <= 24
+        && request.resource.data.streamId is string
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.keys().hasOnly(['uid', 'nick', 'text', 'streamId', 'createdAt']);
+      allow update, delete: if false;
+    }
+  }
+}
+
+// Índice compuesto necesario (Firestore lo sugiere con un link en el primer error):
+//   colección liga_tv_chat · streamId ASC · createdAt DESC

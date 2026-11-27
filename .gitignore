@@ -111,3 +111,10 @@ $RECYCLE.BIN/
 .VolumeIcon.icns
 .cxx/
 .externalNativeBuild/
+
+# ── v3: artefactos de compilación y logs (no versionar) ──
+build-sim/
+*.log
+Build *.txt
+android/.kotlin/
+*.certSigningRequest

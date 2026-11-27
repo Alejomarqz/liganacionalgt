@@ -1265,7 +1265,7 @@ class Home extends Component {
           <ImageBackground
             source={
               require(
-                '../resources/home/featured-match-bg.png',
+                '../resources/home/featured-match-bg.jpg',
               )
             }
             resizeMode="cover"

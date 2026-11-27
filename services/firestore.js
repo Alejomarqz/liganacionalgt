@@ -2,7 +2,7 @@
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 
-// ✅ Firestore DEFAULT del proyecto (futbolchapin-ae164)
+// Firestore DEFAULT del proyecto Firebase de la app
 export function followersDb() {
   return firestore();
 }

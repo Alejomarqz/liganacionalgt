@@ -115,7 +115,7 @@ export default class Webview extends Component {
   </Text>
 </View>
         <WebView
-          source={{ uri: this.props.route?.params?.url || 'https://cd.futbolchapin.app/' }}          startInLoadingState={true}
+          source={{ uri: this.props.route?.params?.url || 'https://liganacionalgt.com/' }}          startInLoadingState={true}
           originWhitelist={['*']}
           ref={this.WEBVIEW_REF}
           onNavigationStateChange={this.onNavigationStateChange}
