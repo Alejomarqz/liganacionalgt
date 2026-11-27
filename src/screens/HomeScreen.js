@@ -25,6 +25,7 @@ import { useMatchReminder } from '../notifications/reminders';
 import FooterTabs from '../../components/FooterTabs';
 import TeamSearchModal from '../../components/TeamSearchModal';
 import AdFooter from '../../ads/AdFooter';
+import PollCard from '../../components/PollCard';
 
 const LOGO = require('../../resources/logogrande.png');
 
@@ -182,6 +183,11 @@ export default function HomeScreen({ navigation }) {
             {/* 2. Liga TV */}
             <LigaTVBanner tv={tv} onPress={() => navigation.navigate('LigaTV')} />
 
+            {/* 2b. Votación / pronóstico del partido destacado */}
+            <View style={{ paddingHorizontal: space[5] }}>
+              <PollCard />
+            </View>
+
             {/* 3. Jornada */}
             <View>
               <SectionHeader eyebrow="Partidos" title={roundName} onAction={() => navigation.navigate('Calendar')} actionLabel="Calendario" />
@@ -213,7 +219,7 @@ export default function HomeScreen({ navigation }) {
             {/* 5. Goleadores */}
             <View>
               <SectionHeader eyebrow="Bota de Oro" title="Goleadores" onAction={() => navigation.navigate('Scorers')} />
-              <ScorersRail rows={scorers.rows} loading={scorers.loading} />
+              <ScorersRail rows={scorers.rows} loading={scorers.loading} onPress={(it) => navigation.navigate('Player', { playerId: it.player.id, player: { ...it.player, team: it.team }, scope: 'guatemala' })} />
             </View>
 
             {/* 6. Pulso de la temporada */}

@@ -19,6 +19,7 @@ import notifee, {
   TriggerType,
 } from '@notifee/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { followMatch, unfollowMatch, isFollowingMatch } from '../../services/notifications';
 
 const CHANNEL_MATCH = 'lngt_match_reminders';
 const CHANNEL_TV = 'lngt_ligatv';
@@ -164,21 +165,36 @@ export function installLocalNotificationRouter(navigate) {
   });
 }
 
-/** Hook para la campana de un partido */
+/**
+ * Campana de un partido = 2 cosas a la vez:
+ *  1) Push del servidor (FCM tema del partido): goles, inicio, final — ya existente
+ *  2) Recordatorio LOCAL 15 min antes (si aún no empieza)
+ */
 export function useMatchReminder(match) {
   const id = match ? matchReminderId(match.id) : null;
   const [on, setOn] = useState(false);
   useEffect(() => {
     if (!id) return;
-    readStore().then((s) => setOn(Boolean(s[id])));
-  }, [id]);
+    let alive = true;
+    Promise.all([readStore(), isFollowingMatch(String(match.id)).catch(() => false)]).then(([s, following]) => {
+      if (alive) setOn(Boolean(s[id]) || Boolean(following));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [id, match?.id]);
   const toggle = useCallback(async () => {
     if (!match) return;
     if (on) {
-      await cancelReminder(id);
       setOn(false);
+      await Promise.all([cancelReminder(id), unfollowMatch(String(match.id)).catch(() => {})]);
     } else {
-      setOn(await scheduleMatchReminder(match));
+      setOn(true);
+      const [local, push] = await Promise.all([
+        match.isScheduled ? scheduleMatchReminder(match) : Promise.resolve(false),
+        followMatch(String(match.id)).catch(() => false),
+      ]);
+      setOn(Boolean(local || push));
     }
   }, [on, id, match]);
   return { on, toggle };

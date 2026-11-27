@@ -8,3 +8,5 @@ export { default as Skeleton, SkeletonCard } from './Skeleton';
 export { default as SectionHeader } from './SectionHeader';
 export { default as Pill } from './Pill';
 export { EmptyState, ErrorState, OfflineBanner } from './StateViews';
+export { default as Tabs } from './Tabs';
+export { default as FormStrip } from './FormStrip';

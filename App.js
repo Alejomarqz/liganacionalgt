@@ -75,8 +75,9 @@ import {
   primeLogos,
 } from './src/api/logoRegistry';
 
+// v3: Match Center nuevo
 import MatchScreen
-  from './components/Match';
+  from './src/screens/MatchCenterScreen';
 
 import TeamsScreen
   from './components/Teams';
@@ -105,14 +106,16 @@ import ScorersScreen
 import WebviewScreen
   from './components/Webview';
 
+// v3: Perfil de equipo nuevo
 import TeamScreen
-  from './components/TeamScreen';
+  from './src/screens/TeamProfileScreen';
 
 import MyTeamScreen
   from './components/MyTeam';
 
+// v3: Perfil de jugador nuevo
 import PlayerScreen
-  from './components/PlayerScreen';
+  from './src/screens/PlayerProfileScreen';
 
 import More
   from './components/More';
