@@ -1,58 +1,58 @@
-import React, { useRef, useState, useEffect } from 'react';
+// ads/InlineAd.js
+// ─── Banner inline para insertar dentro de listas (posiciones, partidos) ───
+import React, { useState } from 'react';
 import { View, StyleSheet, Platform } from 'react-native';
-import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
+import { BannerAd, BannerAdSize } from 'react-native-google-mobile-ads';
+import { useTheme } from '../utils/ThemeContext';
+import AD_UNITS from './AdConfig';
 
-export default function InlineAd() {
+export default function InlineAd({ style }) {
   const [loaded, setLoaded] = useState(false);
-  const [showAd, setShowAd] = useState(true); // Controlar si se debe mostrar el banner
-  const adUnitId = __DEV__
-    ? TestIds.BANNER
-    : (Platform.OS === 'ios'
-        ? 'ca-app-pub-3710973902746391/7504779644'   // iOS real
-        : 'ca-app-pub-3710973902746391/8895303811'); // Android real
-
-  // Función para recargar el banner después de un tiempo (60 segundos)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setShowAd(false);  // Ocultar el anuncio
-      setLoaded(false);  // Marcar como no cargado
-      setTimeout(() => {
-        setShowAd(true);  // Mostrar nuevamente el anuncio después de ocultarlo
-      }, 100);  // Pequeña demora para asegurarse que el banner se recargue
-    }, 60000); // 60000ms = 60 segundos
-
-    return () => clearInterval(interval); // Limpiar el intervalo cuando el componente se desmonte
-  }, []);
+  const { theme } = useTheme();
+  const colors = theme.colors;
+  const isDark = theme.mode === 'dark';
 
   return (
-    <View style={S.wrap}>
-      {showAd && (
-        <BannerAd
-          unitId={adUnitId}
-          size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-          requestOptions={{ requestNonPersonalizedAdsOnly: false }}
-          onAdLoaded={() => setLoaded(true)}  // Cuando se carga el anuncio
-          onAdFailedToLoad={(error) => console.log('Ad failed to load:', error)}  // Si falla la carga
-          style={S.card}
-        />
-      )}
+    <View style={[S.wrap, !loaded && S.collapsed, style]}>
+      <BannerAd
+        unitId={AD_UNITS.BANNER_INLINE}
+        size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
+        requestOptions={{ requestNonPersonalizedAdsOnly: false }}
+        onAdLoaded={() => setLoaded(true)}
+        onAdFailedToLoad={() => setLoaded(false)}
+        style={[
+          S.card,
+          {
+            backgroundColor: colors.cardBg,
+            borderColor: colors.cardBorder,
+          },
+        ]}
+      />
     </View>
   );
 }
 
 const S = StyleSheet.create({
   wrap: {
-    marginVertical: 8,
+    marginVertical: 6,
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  collapsed: {
+    height: 0,
+    marginVertical: 0,
   },
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    elevation: 3,
+    borderRadius: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+        shadowOffset: { width: 0, height: 2 },
+      },
+      android: { elevation: 2 },
+    }),
   },
 });

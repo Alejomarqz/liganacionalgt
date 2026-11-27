@@ -1,475 +1,1642 @@
 // components/MatchCard.js
-import React, { memo, useRef, useMemo } from 'react';
-import { View, Text, Image, Animated, StyleSheet, TouchableOpacity } from 'react-native';
-import LogoImg from './LogoImg';
-import LiveClock from '../utils/LiveClock';
-import { statusLabel, isLive as isLiveNow } from '../utils/status';
+// Liga Nacional GT
+// Cabecera del partido alimentada exclusivamente por match-center.php
+
+import React, {
+  memo,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+
+import {
+  View,
+  Text,
+  Image,
+  Animated,
+  StyleSheet,
+  TouchableOpacity,
+} from 'react-native';
+
 import { useTheme } from '../utils/ThemeContext';
+import { BRAND } from '../utils/theme';
 
-const BALL_ICON = require('../resources/ball.png');
-const ATouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
-/* ========= Helpers de fecha (idénticos a Home) ========= */
-const GT_OFFSET = -6; // America/Guatemala
-const DOW_ES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+const LOGO_SIZE = 46;
 
-const pad2 = (n) => String(n ?? 0).padStart(2, '0');
 
-// YYYYMMDD -> Date (local)
-const parseYmdLocal = (ymd) => {
-  const s = String(ymd || '');
-  if (s.length < 8) return null;
-  const y = +s.slice(0, 4), m = +s.slice(4, 6) - 1, d = +s.slice(6, 8);
-  const dt = new Date(y, m, d, 0, 0, 0, 0);
-  return isNaN(dt.getTime()) ? null : dt;
-};
-const ddmmyyyy = (d) =>
-  `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+/* =========================================================
+   ESTADOS
+========================================================= */
 
-// Ajuste de hora a GT
-function adjustTimeToGuatemala(hhmm, gmt) {
-  if (!hhmm) return { hhmm: '--:--', shift: 0 };
-  const [h, m] = hhmm.split(':').map((n) => parseInt(n, 10));
-  const g = Number.isFinite(Number(gmt)) ? Number(gmt) : GT_OFFSET;
-  const delta = GT_OFFSET - g;
-  let total = h * 60 + m + delta * 60;
-  let shift = 0; // -1: día anterior, +1: día siguiente
-  while (total < 0) {
-    total += 1440;
-    shift -= 1;
-  }
-  while (total >= 1440) {
-    total -= 1440;
-    shift += 1;
-  }
-  const HH = String(Math.floor(total / 60)).padStart(2, '0');
-  const MM = String(total % 60).padStart(2, '0');
-  return { hhmm: `${HH}:${MM}`, shift };
+const LIVE_STATUSES = new Set([
+  'first_half',
+  'second_half',
+  'extra_first',
+  'extra_second',
+  'penalties',
+]);
+
+const BREAK_STATUSES = new Set([
+  'halftime',
+  'end_90',
+  'extra_break',
+  'end_extra',
+]);
+
+const NO_SCORE_STATUSES = new Set([
+  'scheduled',
+  'postponed',
+  'cancelled',
+]);
+
+
+function getStatus(match) {
+  return String(
+    match?.status || '',
+  )
+    .trim()
+    .toLowerCase();
 }
-// YYYYMMDD + shift -> YYYYMMDD
-function shiftYmd(ymd, shift) {
-  const s = String(ymd || '');
-  if (!shift || s.length < 8) return s || '';
-  const y = +s.slice(0, 4),
-    mo = +s.slice(4, 6) - 1,
-    d = +s.slice(6, 8);
-  const dt = new Date(Date.UTC(y, mo, d));
-  dt.setUTCDate(dt.getUTCDate() + shift);
-  const yy = dt.getUTCFullYear();
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, '0');
-  const dd = String(dt.getUTCDate()).padStart(2, '0');
-  return `${yy}${mm}${dd}`;
-}
-// separador igual a Home: narrow NBSP + middle dot + narrow NBSP
-const SEP = '\u202F\u00B7\u202F';
 
-/* ========= Fallback de reloj sencillo (mm:ss) ========= */
-const simpleClockFromStatus = (statusObj) => {
-  const m = Number(statusObj?.minute ?? statusObj?.min);
-  const s = Number(statusObj?.second ?? statusObj?.sec);
-  if (Number.isFinite(m) || Number.isFinite(s)) {
-    return `${pad2(Number.isFinite(m) ? m : 0)}:${pad2(
-      Number.isFinite(s) ? s : 0
-    )}`;
+
+function isLive(match) {
+  const status =
+    getStatus(match);
+
+  /*
+   * Un descanso nunca debe pintarse como "en juego"
+   * aunque isLive llegara true.
+   */
+  if (
+    BREAK_STATUSES.has(status) ||
+    status === 'halftime'
+  ) {
+    return false;
   }
-  return '';
-};
 
-function MatchCard({
+  return (
+    match?.isLive === true ||
+    LIVE_STATUSES.has(status)
+  );
+}
+
+
+function isBreak(match) {
+  return BREAK_STATUSES.has(
+    getStatus(match),
+  );
+}
+
+
+function statusText(match) {
+  const status =
+    getStatus(match);
+
+  switch (status) {
+    case 'scheduled':
+      return 'Programado';
+
+    case 'first_half':
+      return 'Primer tiempo';
+
+    case 'halftime':
+      return 'Medio tiempo';
+
+    case 'second_half':
+      return 'Segundo tiempo';
+
+    case 'end_90':
+      return 'Fin de los 90′';
+
+    case 'extra_first':
+      return 'Primer tiempo extra';
+
+    case 'extra_break':
+      return 'Descanso TE';
+
+    case 'extra_second':
+      return 'Segundo tiempo extra';
+
+    case 'end_extra':
+      return 'Fin del tiempo extra';
+
+    case 'penalties':
+      return 'Penales';
+
+    case 'finished':
+      return 'Final';
+
+    case 'suspended':
+      return 'Suspendido';
+
+    case 'postponed':
+      return 'Postergado';
+
+    case 'cancelled':
+      return 'Cancelado';
+
+    default:
+      return (
+        match?.statusLabel ||
+        match?.statusCompact ||
+        '—'
+      );
+  }
+}
+
+
+/* =========================================================
+   NOMBRES
+========================================================= */
+
+function fixTeamName(value = '') {
+  const raw =
+    String(value || '').trim();
+
+  const plain =
+    raw
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z]/g, '')
+      .toLowerCase();
+
+  if (
+    plain === 'suchitepquez' ||
+    plain === 'suchitepequez' ||
+    (
+      plain.startsWith('suchitep') &&
+      plain.endsWith('quez')
+    )
+  ) {
+    return 'Suchitepéquez';
+  }
+
+  return raw;
+}
+
+
+/* =========================================================
+   FECHA / HORA
+========================================================= */
+
+function kickoffInfo(match = {}) {
+  const kickoff =
+    String(
+      match?.kickoff || '',
+    );
+
+  const result =
+    kickoff.match(
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/,
+    );
+
+  if (!result) {
+    return {
+      date:
+        match?.date || '',
+
+      time:
+        '',
+    };
+  }
+
+  return {
+    date:
+      `${result[3]}/${result[2]}/${result[1]}`,
+
+    time:
+      `${result[4]}:${result[5]}`,
+  };
+}
+
+
+/* =========================================================
+   ESCUDOS
+========================================================= */
+
+function initials(name = '') {
+  return String(name)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(
+      part =>
+        part
+          .charAt(0)
+          .toUpperCase(),
+    )
+    .join('');
+}
+
+
+function TeamLogo({
+  uri,
+  name,
+  short,
+  colors,
+}) {
+  const [
+    failed,
+    setFailed,
+  ] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+  }, [uri]);
+
+  if (
+    uri &&
+    !failed
+  ) {
+    return (
+      <Image
+        source={{
+          uri,
+        }}
+        style={
+          styles.logo
+        }
+        resizeMode="contain"
+        onError={() =>
+          setFailed(true)
+        }
+      />
+    );
+  }
+
+  return (
+    <View
+      style={[
+        styles.logo,
+        styles.logoFallback,
+        {
+          borderColor:
+            colors.cardBorder,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.logoFallbackText,
+          {
+            color:
+              colors.text,
+          },
+        ]}
+      >
+        {short ||
+          initials(name) ||
+          '?'}
+      </Text>
+    </View>
+  );
+}
+
+
+/* =========================================================
+   RELOJ
+========================================================= */
+
+function currentSeconds(clock) {
+  const base =
+    Number(
+      clock?.currentSeconds ??
+      clock?.baseSeconds ??
+      0,
+    ) || 0;
+
+  if (
+    !clock?.running ||
+    !clock?.serverNow
+  ) {
+    return base;
+  }
+
+  const serverNow =
+    Date.parse(
+      clock.serverNow,
+    );
+
+  if (
+    !Number.isFinite(
+      serverNow,
+    )
+  ) {
+    return base;
+  }
+
+  const elapsed =
+    Math.max(
+      0,
+      Math.floor(
+        (
+          Date.now() -
+          serverNow
+        ) / 1000,
+      ),
+    );
+
+  return base + elapsed;
+}
+
+
+function minuteFromSeconds(
+  status,
+  seconds,
+) {
+  const safe =
+    Math.max(
+      0,
+      Number(seconds) || 0,
+    );
+
+  let regulation = null;
+
+  switch (status) {
+    case 'first_half':
+    case 'halftime':
+      regulation =
+        45 * 60;
+      break;
+
+    case 'second_half':
+    case 'end_90':
+      regulation =
+        90 * 60;
+      break;
+
+    case 'extra_first':
+    case 'extra_break':
+      regulation =
+        105 * 60;
+      break;
+
+    case 'extra_second':
+    case 'end_extra':
+      regulation =
+        120 * 60;
+      break;
+
+    default:
+      regulation =
+        null;
+  }
+
+  if (
+    regulation !== null &&
+    safe > regulation
+  ) {
+    return {
+      minute:
+        Math.floor(
+          regulation / 60,
+        ),
+
+      stoppage:
+        Math.floor(
+          (
+            safe -
+            regulation
+          ) / 60,
+        ),
+    };
+  }
+
+  return {
+    minute:
+      Math.floor(
+        safe / 60,
+      ),
+
+    stoppage: 0,
+  };
+}
+
+
+function buildClockLabel(
   match,
+  clock,
+) {
+  const status =
+    getStatus(match);
+
+  if (
+    status === 'penalties'
+  ) {
+    return 'PEN';
+  }
+
+  const {
+    minute,
+    stoppage,
+  } =
+    minuteFromSeconds(
+      status,
+      currentSeconds(clock),
+    );
+
+  if (
+    stoppage > 0
+  ) {
+    return `${minute}+${stoppage}′`;
+  }
+
+  if (
+    minute > 0
+  ) {
+    return `${minute}′`;
+  }
+
+  switch (status) {
+    case 'first_half':
+      return '1′';
+
+    case 'second_half':
+      return '46′';
+
+    case 'extra_first':
+      return '91′';
+
+    case 'extra_second':
+      return '106′';
+
+    default:
+      return '•';
+  }
+}
+
+
+function useClockLabel(
+  match,
+  clock,
+) {
+  const [
+    label,
+    setLabel,
+  ] = useState(
+    () =>
+      buildClockLabel(
+        match,
+        clock,
+      ),
+  );
+
+  useEffect(() => {
+    const update = () => {
+      setLabel(
+        buildClockLabel(
+          match,
+          clock,
+        ),
+      );
+    };
+
+    update();
+
+    if (
+      !isLive(match) ||
+      !clock?.running
+    ) {
+      return undefined;
+    }
+
+    const timer =
+      setInterval(
+        update,
+        1000,
+      );
+
+    return () =>
+      clearInterval(timer);
+
+  }, [
+    match?.status,
+    match?.revision,
+    match?.isLive,
+    clock?.running,
+    clock?.currentSeconds,
+    clock?.baseSeconds,
+    clock?.serverNow,
+  ]);
+
+  return label;
+}
+
+
+/* =========================================================
+   GOLEADORES
+========================================================= */
+
+const GOAL_TYPES = new Set([
+  'goal',
+  'penalty_goal',
+  'own_goal',
+]);
+
+
+function eventMinute(event = {}) {
+  const minute =
+    Number(
+      event?.minute,
+    );
+
+  const stoppage =
+    Number(
+      event?.stoppage || 0,
+    );
+
+  if (
+    !Number.isFinite(minute)
+  ) {
+    return '';
+  }
+
+  return stoppage > 0
+    ? `${minute}+${stoppage}′`
+    : `${minute}′`;
+}
+
+
+function buildScorers(
+  events,
   homeId,
   awayId,
-  homeName,
-  awayName,
+) {
+  const home = [];
+  const away = [];
 
-  // Etiquetas
-  timeLabel,
-  dateTimeLabel,
+  (
+    Array.isArray(events)
+      ? events
+      : []
+  ).forEach(event => {
+    const type =
+      String(
+        event?.event_type || '',
+      );
 
-  // Estados
-  isPre,
-  live,
+    if (
+      !GOAL_TYPES.has(type)
+    ) {
+      return;
+    }
 
-  // Animations
-  logoScale,
-  logoTranslateY,
-  namesOpacity,
-  contentTranslateY,
-  scoreScale,
-  scoreTranslateY,
+    const suffix =
+      type === 'penalty_goal'
+        ? ' (P)'
+        : type === 'own_goal'
+          ? ' (AG)'
+          : '';
+
+    const name =
+      String(
+        event?.player_name ||
+        'Gol',
+      );
+
+    const minute =
+      eventMinute(event);
+
+    const label =
+      `${name}${minute ? ` ${minute}` : ''}${suffix}`;
+
+    const teamId =
+      Number(
+        event?.team_id || 0,
+      );
+
+    if (
+      teamId ===
+      Number(homeId)
+    ) {
+      home.push(label);
+
+    } else if (
+      teamId ===
+      Number(awayId)
+    ) {
+      away.push(label);
+    }
+  });
+
+  return {
+    home,
+    away,
+  };
+}
+
+
+/* =========================================================
+   EQUIPO
+========================================================= */
+
+function TeamSide({
+  team,
+  colors,
+  scale,
+  nameOpacity,
+  onPress,
+}) {
+  const name =
+    fixTeamName(
+      team?.name ||
+      '',
+    );
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.72}
+      onPress={onPress}
+      style={
+        styles.teamSide
+      }
+    >
+      <Animated.View
+        style={{
+          transform: [
+            {
+              scale,
+            },
+          ],
+        }}
+      >
+        <TeamLogo
+          uri={
+            team?.logo
+          }
+          name={
+            name
+          }
+          short={
+            team?.short
+          }
+          colors={
+            colors
+          }
+        />
+      </Animated.View>
+
+      <Animated.Text
+        numberOfLines={2}
+        style={[
+          styles.teamName,
+          {
+            color:
+              colors.text,
+
+            opacity:
+              nameOpacity,
+          },
+        ]}
+      >
+        {name ||
+          'Equipo'}
+      </Animated.Text>
+    </TouchableOpacity>
+  );
+}
+
+
+/* =========================================================
+   CENTRO DEL MARCADOR
+========================================================= */
+
+function ScoreCenter({
+  match,
+  score,
+  clockLabel,
+  colors,
+  isDark,
+  pulse,
+}) {
+  const status =
+    getStatus(match);
+
+  const live =
+    isLive(match);
+
+  const halftime =
+    status === 'halftime';
+
+  const finished =
+    status === 'finished';
+
+  const upcoming =
+    status === 'scheduled';
+
+  const {
+    time,
+  } =
+    kickoffInfo(match);
+
+  const penalties =
+    score?.penalties || {};
+
+  const hasPenalties =
+    Number(
+      penalties?.home || 0,
+    ) > 0 ||
+    Number(
+      penalties?.away || 0,
+    ) > 0;
+
+
+  if (
+    upcoming
+  ) {
+    return (
+      <View
+        style={
+          styles.centerScore
+        }
+      >
+        <Text
+          style={[
+            styles.kickoffTime,
+            {
+              color:
+                colors.text,
+            },
+          ]}
+        >
+          {time || '--:--'}
+        </Text>
+
+        <Text
+          style={[
+            styles.smallStatus,
+            {
+              color:
+                colors.textMuted,
+            },
+          ]}
+        >
+          Programado
+        </Text>
+      </View>
+    );
+  }
+
+
+  return (
+    <View
+      style={
+        styles.centerScore
+      }
+    >
+      <View
+        style={
+          styles.scoreLine
+        }
+      >
+        <Text
+          style={[
+            styles.bigScore,
+            {
+              color:
+                colors.text,
+            },
+          ]}
+        >
+          {Number(
+            score?.home ?? 0,
+          )}
+        </Text>
+
+        <Text
+          style={[
+            styles.scoreDash,
+            {
+              color:
+                colors.textMuted,
+            },
+          ]}
+        >
+          –
+        </Text>
+
+        <Text
+          style={[
+            styles.bigScore,
+            {
+              color:
+                colors.text,
+            },
+          ]}
+        >
+          {Number(
+            score?.away ?? 0,
+          )}
+        </Text>
+      </View>
+
+
+      {live ? (
+        <View
+          style={
+            styles.liveMinuteRow
+          }
+        >
+          <Animated.View
+            style={[
+              styles.liveMinuteDot,
+              {
+                transform: [
+                  {
+                    scale:
+                      pulse,
+                  },
+                ],
+              },
+            ]}
+          />
+
+          <Text
+            style={
+              styles.liveMinuteText
+            }
+          >
+            {clockLabel}
+          </Text>
+        </View>
+
+      ) : halftime ? (
+        <View
+          style={[
+            styles.statusPill,
+            {
+              backgroundColor:
+                isDark
+                  ? 'rgba(245,158,11,.13)'
+                  : '#FFF7E6',
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.statusPillText,
+              {
+                color:
+                  '#D97706',
+              },
+            ]}
+          >
+            Medio tiempo
+          </Text>
+        </View>
+
+      ) : finished ? (
+        <>
+          <Text
+            style={[
+              styles.finalText,
+              {
+                color:
+                  colors.textMuted,
+              },
+            ]}
+          >
+            Final
+          </Text>
+
+          {hasPenalties && (
+            <Text
+              style={[
+                styles.penaltyText,
+                {
+                  color:
+                    colors.textMuted,
+                },
+              ]}
+            >
+              Pen. {Number(
+                penalties?.home || 0,
+              )}
+              -
+              {Number(
+                penalties?.away || 0,
+              )}
+            </Text>
+          )}
+        </>
+
+      ) : (
+        <Text
+          style={[
+            styles.smallStatus,
+            {
+              color:
+                colors.textMuted,
+            },
+          ]}
+        >
+          {statusText(match)}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+
+/* =========================================================
+   MATCH CARD
+========================================================= */
+
+function MatchCard({
+  data = null,
+
   topBarHeight,
   topBarOpacity,
-  logosShiftToCenter,
+  logoScale,
+  namesOpacity,
   livePulse,
-
-  // Reloj
-  statusObj,
-  anchors,
-
-  // Goleadores
-  scorersHome = [],
-  scorersAway = [],
-
-  // Embebido
-  embedded = false,
-  clockLabel,
 
   onPressHomeTeam,
   onPressAwayTeam,
 }) {
-  // 🔹 Tomamos los colores desde el tema
-  const { theme } = useTheme();
-  const COLORS = theme.colors;
+  const {
+    theme,
+  } = useTheme();
 
-  const cardStyle = embedded
-    ? [
-        styles.card,
-        {
-          marginHorizontal: 0,
-          borderWidth: 0,
-          paddingHorizontal: 0,
-          paddingTop: 0,
-        },
-      ]
-    : [styles.card];
+  const colors =
+    theme.colors;
 
-  // ===== Datos base: fecha y hora calculadas igual que en Home =====
-  const sid = Number(match?.statusId);
-  const isPreStatus = isPre || sid === 0;
+  const isDark =
+    theme.mode === 'dark';
 
-  const rawTime = String(match?.scheduledStart || '').slice(0, 5); // "HH:mm" si viene "HH:mm:ss"
-  const gmt = Number(match?.gmt ?? match?.stadiumGMT ?? GT_OFFSET);
-  const { hhmm: timeGT, shift } = adjustTimeToGuatemala(
-    rawTime || timeLabel || '',
-    gmt
-  );
 
-  const baseYmd = match?.date || null;
-  const ymdAdj = baseYmd ? shiftYmd(baseYmd, shift) : baseYmd;
-  const dObj = ymdAdj ? parseYmdLocal(ymdAdj) : null;
+  const match =
+    data?.match || {};
 
-  const dateStr = dObj ? ddmmyyyy(dObj) : '';
-  const dowShort = dObj ? DOW_ES[dObj.getDay()] : '';
+  const home =
+    data?.teams?.home || {};
 
-  // Chip superior (solo en NO-PRE): fecha•hora
-  let chipLabel =
-    dateStr && (timeGT || timeLabel)
-      ? `${dateStr}${SEP}${timeGT || timeLabel}`
-      : timeLabel || timeGT || '';
-  if (dateTimeLabel != null && dateTimeLabel !== '') chipLabel = dateTimeLabel;
+  const away =
+    data?.teams?.away || {};
 
-  // En vivo real (excluye medio tiempo = 5)
-  const liveNow = !isPreStatus && isLiveNow(sid) && sid !== 5;
+  const score =
+    data?.score || {};
 
-  const clockLabelFn =
-    typeof clockLabel === 'function'
-      ? clockLabel
-      : () => simpleClockFromStatus(statusObj) || '';
+  const clock =
+    data?.clock || {};
 
-  const _livePulse = livePulse || useRef(new Animated.Value(1)).current;
+  const events =
+    Array.isArray(
+      data?.events,
+    )
+      ? data.events
+      : [];
 
-  const logosShiftToCenterNeg = useMemo(
-    () => Animated.multiply(logosShiftToCenter, -1),
-    [logosShiftToCenter]
-  );
+
+  const status =
+    getStatus(match);
+
+  const live =
+    isLive(match);
+
+  const upcoming =
+    status === 'scheduled';
+
+
+  const {
+    date,
+    time,
+  } =
+    kickoffInfo(match);
+
+
+  const scorers =
+    useMemo(
+      () =>
+        buildScorers(
+          events,
+          home?.id,
+          away?.id,
+        ),
+      [
+        events,
+        home?.id,
+        away?.id,
+      ],
+    );
+
+
+  const hasScorers =
+    scorers.home.length > 0 ||
+    scorers.away.length > 0;
+
+
+  const clockLabel =
+    useClockLabel(
+      match,
+      clock,
+    );
+
+
+  /* Animaciones recibidas de Match.js */
+
+  const internalTopHeight =
+    useRef(
+      new Animated.Value(32),
+    ).current;
+
+  const internalTopOpacity =
+    useRef(
+      new Animated.Value(1),
+    ).current;
+
+  const internalLogoScale =
+    useRef(
+      new Animated.Value(1),
+    ).current;
+
+  const internalNamesOpacity =
+    useRef(
+      new Animated.Value(1),
+    ).current;
+
+  const internalPulse =
+    useRef(
+      new Animated.Value(1),
+    ).current;
+
+
+  const _topH =
+    topBarHeight ||
+    internalTopHeight;
+
+  const _topOp =
+    topBarOpacity ||
+    internalTopOpacity;
+
+  const _scale =
+    logoScale ||
+    internalLogoScale;
+
+  const _nameOp =
+    namesOpacity ||
+    internalNamesOpacity;
+
+  const _pulse =
+    livePulse ||
+    internalPulse;
+
 
   return (
-    <Animated.View
+    <View
       style={[
-        cardStyle,
+        styles.root,
         {
-          backgroundColor: COLORS.cardBg,
-          borderColor: COLORS.cardBorder,
+          backgroundColor:
+            colors.cardBg,
+
+          borderBottomColor:
+            colors.cardBorder,
         },
       ]}
     >
-      {/* ===== Top bar: EN VIVO + chip de fecha/hora (chip oculto en PRE) ===== */}
-      <Animated.View
-        style={{
-          height: topBarHeight,
-          opacity: topBarOpacity,
-          overflow: 'hidden',
-        }}
-      >
-        <View style={styles.topRow}>
-          <View style={{ width: 90, alignItems: 'flex-start' }}>
-            {live ? (
-              <Animated.View
-                style={[
-                  styles.liveChip,
-                  {
-                    transform: [{ scale: _livePulse }],
-                    backgroundColor: COLORS.liveBg,
-                    borderColor: COLORS.liveBorder,
-                  },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.liveDot,
-                    { backgroundColor: COLORS.liveText },
-                  ]}
-                />
-                <Text style={[styles.liveText, { color: COLORS.liveText }]}>
-                  EN VIVO
-                </Text>
-              </Animated.View>
-            ) : null}
-          </View>
+      {/* ─────────────────────────────────────────────
+          META
+      ───────────────────────────────────────────── */}
 
-          <View style={{ flex: 1, alignItems: 'center' }}>
-            {!isPreStatus && (
-              <Text style={[styles.timeText, { color: COLORS.text }]}>
-                {chipLabel}
+      <Animated.View
+        style={[
+          styles.metaTop,
+          {
+            height:
+              _topH,
+
+            opacity:
+              _topOp,
+          },
+        ]}
+      >
+        <View
+          style={
+            styles.metaSide
+          }
+        >
+          {live && (
+            <Animated.View
+              style={[
+                styles.liveBadge,
+                {
+                  transform: [
+                    {
+                      scale:
+                        _pulse,
+                    },
+                  ],
+                },
+              ]}
+            >
+              <View
+                style={
+                  styles.liveBadgeDot
+                }
+              />
+
+              <Text
+                style={
+                  styles.liveBadgeText
+                }
+              >
+                EN VIVO
               </Text>
+            </Animated.View>
+          )}
+        </View>
+
+
+        <View
+          style={
+            styles.metaCenter
+          }
+        >
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.metaText,
+              {
+                color:
+                  colors.textMuted,
+              },
+            ]}
+          >
+            {date && time
+              ? `${date} · ${time}`
+              : date ||
+                time ||
+                statusText(match)}
+          </Text>
+        </View>
+
+
+        <View
+          style={
+            styles.metaSide
+          }
+        />
+      </Animated.View>
+
+
+      {/* ─────────────────────────────────────────────
+          MARCADOR PRINCIPAL
+      ───────────────────────────────────────────── */}
+
+      <View
+        style={
+          styles.scoreboard
+        }
+      >
+        <TeamSide
+          team={home}
+          colors={colors}
+          scale={_scale}
+          nameOpacity={_nameOp}
+          onPress={
+            onPressHomeTeam
+          }
+        />
+
+        <ScoreCenter
+          match={match}
+          score={score}
+          clockLabel={
+            clockLabel
+          }
+          colors={colors}
+          isDark={isDark}
+          pulse={_pulse}
+        />
+
+        <TeamSide
+          team={away}
+          colors={colors}
+          scale={_scale}
+          nameOpacity={_nameOp}
+          onPress={
+            onPressAwayTeam
+          }
+        />
+      </View>
+
+
+      {/* ─────────────────────────────────────────────
+          GOLEADORES
+      ───────────────────────────────────────────── */}
+
+      {!upcoming &&
+        hasScorers && (
+        <View
+          style={[
+            styles.scorersBox,
+            {
+              borderTopColor:
+                colors.cardBorder,
+
+              backgroundColor:
+                isDark
+                  ? 'rgba(255,255,255,.025)'
+                  : '#FAFBFC',
+            },
+          ]}
+        >
+          <View
+            style={
+              styles.scorerHome
+            }
+          >
+            {scorers.home.map(
+              (
+                label,
+                index,
+              ) => (
+                <Text
+                  key={`home-${index}`}
+                  numberOfLines={1}
+                  style={[
+                    styles.scorerText,
+                    {
+                      color:
+                        colors.textMuted,
+                    },
+                  ]}
+                >
+                  {label}
+                </Text>
+              ),
             )}
           </View>
 
-          <View style={{ width: 90 }} />
-        </View>
-      </Animated.View>
-
-      {/* ===== Logos + marcador / PRE ===== */}
-      <Animated.View
-        style={[
-          styles.midRow,
-          { transform: [{ translateY: contentTranslateY }] },
-        ]}
-      >
-        {/* Local */}
-        <ATouchableOpacity
-          activeOpacity={0.7}
-          onPress={onPressHomeTeam}
-          style={[
-            styles.teamSide,
-            { transform: [{ translateX: logosShiftToCenter }] },
-          ]}
-          collapsable={false}
-        >
-          <Animated.View
-            style={{
-              transform: [{ scale: logoScale }, { translateY: logoTranslateY }],
-            }}
-          >
-            <LogoImg teamId={homeId} size={56} style={{ marginBottom: 4 }} />
-          </Animated.View>
-          <Animated.Text
-            style={[
-              styles.teamName,
-              { opacity: namesOpacity, color: COLORS.text },
-            ]}
-            numberOfLines={1}
-          >
-            {homeName}
-          </Animated.Text>
-        </ATouchableOpacity>
-
-        {/* Centro */}
-        <Animated.View
-          style={{
-            alignItems: 'center',
-            transform: [
-              { translateY: scoreTranslateY },
-              { scale: scoreScale },
-            ],
-          }}
-        >
-          {isPreStatus ? (
-            // ===== PRE: dos líneas como en Home =====
-            <View style={{ alignItems: 'center' }}>
-              <Text
-                style={[styles.preDate, { color: COLORS.text }]}
-                numberOfLines={1}
-              >
-                {dateStr || '--/--/----'}
-              </Text>
-              <Text
-                style={[styles.preDowTime, { color: COLORS.text }]}
-                numberOfLines={1}
-              >
-                {dowShort
-                  ? `${dowShort}, ${timeGT || timeLabel || '--:--'}`
-                  : timeGT || timeLabel || '--:--'}
-              </Text>
-            </View>
-          ) : (
-            // ===== NO-PRE: marcador + reloj/status =====
-            <>
-              <View style={styles.scoreRow}>
-                <Text style={[styles.scoreNum, { color: COLORS.text }]}>
-                  {match?.scoreStatus?.[homeId]?.score ?? '-'}
-                </Text>
-                <Text
-                  style={[styles.scoreDash, { color: COLORS.textMuted }]}
-                >
-                  –
-                </Text>
-                <Text style={[styles.scoreNum, { color: COLORS.text }]}>
-                  {match?.scoreStatus?.[awayId]?.score ?? '-'}
-                </Text>
-              </View>
-
-              {liveNow ? (
-                <LiveClock
-                  live
-                  style={[styles.statusText, { color: '#d32f2f' }]}
-                  label={clockLabelFn}
-                  statusObj={statusObj}
-                  anchors={anchors}
-                  color={COLORS.text}
-                  mutedColor={COLORS.textMuted}
-                />
-              ) : (
-                <Text
-                  style={[styles.statusText, { color: COLORS.textMuted }]}
-                >
-                  {statusLabel(sid)}
-                </Text>
-              )}
-            </>
-          )}
-        </Animated.View>
-
-        {/* Visitante */}
-        <ATouchableOpacity
-          activeOpacity={0.7}
-          onPress={onPressAwayTeam}
-          style={[
-            styles.teamSide,
-            { transform: [{ translateX: logosShiftToCenterNeg }] },
-          ]}
-          collapsable={false}
-        >
-          <Animated.View
-            style={{
-              transform: [{ scale: logoScale }, { translateY: logoTranslateY }],
-            }}
-          >
-            <LogoImg teamId={awayId} size={56} style={{ marginBottom: 4 }} />
-          </Animated.View>
-          <Animated.Text
-            style={[
-              styles.teamName,
-              { opacity: namesOpacity, color: COLORS.text },
-            ]}
-            numberOfLines={1}
-          >
-            {awayName}
-          </Animated.Text>
-        </ATouchableOpacity>
-      </Animated.View>
-
-      {/* ===== Goleadores ===== */}
-      {(Array.isArray(scorersHome) && scorersHome.length > 0) ||
-      (Array.isArray(scorersAway) && scorersAway.length > 0) ? (
-        <View className="scorersRow" style={styles.scorersRow}>
-          <View style={styles.scorerColLeft}>
-            {(scorersHome || []).map((t, i) => (
-              <Text
-                key={`h-${i}`}
-                style={[styles.scorerText, { color: COLORS.text }]}
-                numberOfLines={1}
-              >
-                {t}
-              </Text>
-            ))}
-          </View>
-          <Image
-            source={BALL_ICON}
-            style={{
-              width: 16,
-              height: 16,
-              opacity: 0.95,
-              marginHorizontal: 6,
-              tintColor: COLORS.text,
-            }}
+          <View
+            style={
+              styles.scorerDivider
+            }
           />
-          <View style={styles.scorerColRight}>
-            {(scorersAway || []).map((t, i) => (
-              <Text
-                key={`a-${i}`}
-                style={[
-                  styles.scorerText,
-                  { color: COLORS.text, textAlign: 'right' },
-                ]}
-                numberOfLines={1}
-              >
-                {t}
-              </Text>
-            ))}
+
+          <View
+            style={
+              styles.scorerAway
+            }
+          >
+            {scorers.away.map(
+              (
+                label,
+                index,
+              ) => (
+                <Text
+                  key={`away-${index}`}
+                  numberOfLines={1}
+                  style={[
+                    styles.scorerText,
+                    styles.scorerAwayText,
+                    {
+                      color:
+                        colors.textMuted,
+                    },
+                  ]}
+                >
+                  {label}
+                </Text>
+              ),
+            )}
           </View>
         </View>
-      ) : null}
-    </Animated.View>
+      )}
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    marginHorizontal: 8,
-    marginTop: 0,
-    borderRadius: 12,
-    borderWidth: 1,
-    overflow: 'hidden',
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-    paddingHorizontal: 14,
-    paddingTop: 8,
-    paddingBottom: 6,
-  },
-  topRow: { flexDirection: 'row', alignItems: 'center' },
-  liveChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-    borderWidth: 1,
-    marginHorizontal: 4,
-  },
-  liveDot: { width: 8, height: 8, borderRadius: 999, marginRight: 6 },
-  liveText: { fontSize: 12, fontWeight: '800' },
 
-  timeText: { fontSize: 12.5, fontWeight: '800' },
+/* =========================================================
+   STYLES
+========================================================= */
 
-  midRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 4,
-    marginBottom: 4,
-  },
-  teamSide: { flex: 1, alignItems: 'center' },
-  teamName: {
-    fontSize: 14,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
+const styles =
+  StyleSheet.create({
 
-  scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  scoreNum: { fontSize: 28, fontWeight: '900' },
-  scoreDash: { fontSize: 20, fontWeight: '800' },
-  statusText: { fontSize: 12, fontWeight: '800' },
+    root: {
+      paddingTop: 5,
+      paddingBottom: 10,
 
-  preDate: { fontSize: 12, fontWeight: '900' },
-  preDowTime: { fontSize: 11, fontWeight: '800' },
+      borderBottomWidth:
+        StyleSheet.hairlineWidth,
+    },
 
-  scorersRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 8,
-    marginBottom: 8,
-    paddingBottom: 5,
-    borderTopWidth: 0,
-  },
-  scorerColLeft: { flex: 1, paddingRight: 6 },
-  scorerColRight: { flex: 1, paddingLeft: 6, alignItems: 'flex-end' },
-  scorerText: {
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: '500',
-  },
-});
 
-export default memo(MatchCard);
+    /* Meta */
+
+    metaTop: {
+      flexDirection: 'row',
+      alignItems: 'center',
+
+      paddingHorizontal: 12,
+
+      overflow: 'hidden',
+    },
+
+
+    metaSide: {
+      width: 80,
+    },
+
+
+    metaCenter: {
+      flex: 1,
+      alignItems: 'center',
+    },
+
+
+    metaText: {
+      fontFamily: 'Poppins-Medium',
+      fontSize: 9,
+    },
+
+
+    liveBadge: {
+      alignSelf: 'flex-start',
+
+      flexDirection: 'row',
+      alignItems: 'center',
+
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+
+      borderRadius: 50,
+
+      backgroundColor:
+        'rgba(220,38,38,.08)',
+
+      borderWidth: 1,
+      borderColor:
+        'rgba(220,38,38,.18)',
+    },
+
+
+    liveBadgeDot: {
+      width: 5,
+      height: 5,
+
+      borderRadius: 3,
+
+      backgroundColor:
+        BRAND.red,
+
+      marginRight: 4,
+    },
+
+
+    liveBadgeText: {
+      color: BRAND.red,
+
+      fontFamily: 'Poppins-Bold',
+      fontSize: 7,
+
+      letterSpacing: 0.7,
+    },
+
+
+    /* Marcador */
+
+    scoreboard: {
+      flexDirection: 'row',
+
+      alignItems: 'center',
+      justifyContent: 'space-between',
+
+      paddingHorizontal: 12,
+      paddingTop: 5,
+      paddingBottom: 7,
+    },
+
+
+    teamSide: {
+      flex: 1,
+
+      minWidth: 0,
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      paddingHorizontal: 3,
+    },
+
+
+    logo: {
+      width: LOGO_SIZE,
+      height: LOGO_SIZE,
+    },
+
+
+    logoFallback: {
+      borderWidth:
+        StyleSheet.hairlineWidth,
+
+      borderRadius:
+        LOGO_SIZE / 2,
+
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+
+    logoFallbackText: {
+      fontFamily: 'Poppins-Bold',
+      fontSize: 8,
+    },
+
+
+    teamName: {
+      width: '100%',
+
+      minHeight: 31,
+
+      marginTop: 6,
+
+      textAlign: 'center',
+
+      fontFamily: 'Poppins-SemiBold',
+      fontSize: 10.5,
+      lineHeight: 14,
+    },
+
+
+    /* Centro */
+
+    centerScore: {
+      width: 104,
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      paddingHorizontal: 4,
+    },
+
+
+    scoreLine: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+
+    bigScore: {
+      minWidth: 28,
+
+      textAlign: 'center',
+
+      fontFamily: 'Poppins-Bold',
+      fontSize: 27,
+
+      lineHeight: 34,
+
+      includeFontPadding: false,
+    },
+
+
+    scoreDash: {
+      marginHorizontal: 3,
+
+      fontFamily: 'Poppins-Regular',
+      fontSize: 17,
+    },
+
+
+    kickoffTime: {
+      fontFamily: 'Poppins-Bold',
+      fontSize: 21,
+
+      includeFontPadding: false,
+    },
+
+
+    smallStatus: {
+      marginTop: 3,
+
+      fontFamily: 'Poppins-Medium',
+      fontSize: 8,
+
+      textAlign: 'center',
+    },
+
+
+    finalText: {
+      marginTop: 1,
+
+      fontFamily: 'Poppins-SemiBold',
+      fontSize: 8.5,
+
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+    },
+
+
+    penaltyText: {
+      marginTop: 2,
+
+      fontFamily: 'Poppins-SemiBold',
+      fontSize: 8,
+    },
+
+
+    /* Live */
+
+    liveMinuteRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+
+      marginTop: 1,
+    },
+
+
+    liveMinuteDot: {
+      width: 6,
+      height: 6,
+
+      borderRadius: 3,
+
+      marginRight: 5,
+
+      backgroundColor:
+        BRAND.red,
+    },
+
+
+    liveMinuteText: {
+      color: BRAND.red,
+
+      fontFamily: 'Poppins-Bold',
+      fontSize: 11,
+    },
+
+
+    statusPill: {
+      marginTop: 3,
+
+      borderRadius: 50,
+
+      paddingHorizontal: 9,
+      paddingVertical: 3,
+    },
+
+
+    statusPillText: {
+      fontFamily: 'Poppins-SemiBold',
+      fontSize: 8,
+    },
+
+
+    /* Goleadores */
+
+    scorersBox: {
+      flexDirection: 'row',
+
+      marginHorizontal: 12,
+
+      paddingTop: 7,
+      paddingBottom: 3,
+
+      borderTopWidth:
+        StyleSheet.hairlineWidth,
+    },
+
+
+    scorerHome: {
+      flex: 1,
+      paddingRight: 9,
+    },
+
+
+    scorerAway: {
+      flex: 1,
+      paddingLeft: 9,
+    },
+
+
+    scorerDivider: {
+      width:
+        StyleSheet.hairlineWidth,
+    },
+
+
+    scorerText: {
+      fontFamily: 'Poppins-Regular',
+      fontSize: 8.5,
+      lineHeight: 13,
+    },
+
+
+    scorerAwayText: {
+      textAlign: 'right',
+    },
+
+  });
+
+
+export default memo(
+  MatchCard,
+);

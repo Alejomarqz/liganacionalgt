@@ -3,37 +3,32 @@ apply plugin: "com.facebook.react"
 apply plugin: "org.jetbrains.kotlin.android"
 
 react {
-  // Autolink moderno (RN 0.79)
   autolinkLibrariesWithApp()
 }
 
 def enableProguardInReleaseBuilds = false
 def vcode = (int)(((new Date().getTime()/1000) - 1451606400) / 10)
-
-// Si no existe hermesEnabled en gradle.properties, asumimos true
 def hermesEnabledProp = project.hasProperty('hermesEnabled') ? project.property('hermesEnabled') : 'true'
 
 android {
   ndkVersion rootProject.ext.ndkVersion
   buildToolsVersion rootProject.ext.buildToolsVersion
-  compileSdk 35   // ⬅️ añade esta línea
-  namespace "com.chapinpro"
+  compileSdk 36
+
+  namespace "com.liganacionalgt"
 
   defaultConfig {
-    applicationId "com.chapinpro"
-    minSdk 24 
+    applicationId "com.liganacionalgt"
+    minSdk 24
     targetSdk 35
     versionCode vcode
-    versionName "5.2.0"
-
-    // Solo arm64-v8a (recomendado para 16 KB / Android 15)
-    ndk { abiFilters "armeabi-v7a", "arm64-v8a" }
+    versionName "5.4.0"
+    ndk { abiFilters "armeabi-v7a", "arm64-v8a", "x86_64" }
   }
 
   packaging {
-    jniLibs { useLegacyPackaging = false } // ✅ requerido para 16 KB
+    jniLibs { useLegacyPackaging = false }
     resources {
-      // No excluir .so / jni/** / lib/**
       excludes += ["/META-INF/{AL2.0,LGPL2.1}"]
     }
   }
@@ -65,6 +60,7 @@ android {
     sourceCompatibility JavaVersion.VERSION_17
     targetCompatibility JavaVersion.VERSION_17
   }
+
   kotlinOptions {
     jvmTarget = "17"
   }
@@ -79,80 +75,23 @@ android {
   }
 }
 
-/* =========================
-   ✅ EXTRACTOR DEL AAR DE RN (VARIANTE RELEASE) + INYECCIÓN DEL .SO
-   - Resuelve com.facebook.react:react-android:0.79.2 (release AAR)
-   - Copia jni/arm64-v8a/libreact_featureflagsjni.so a app/src/main/jniLibs/arm64-v8a/
-   ========================= */
-
-import org.gradle.api.attributes.Attribute
-
 configurations {
-  // Config aislada; NO toca el classpath del app
   reactAarExtractor {
     canBeConsumed = false
     canBeResolved = true
-    // 🔧 Atributos para eliminar ambigüedad de variantes
-    attributes {
-      // Build type que queremos del AAR
-      attribute(Attribute.of("com.android.build.api.attributes.BuildTypeAttr", String), "release")
-      // Estos tres alinean con la publicación del AAR
-      attribute(Attribute.of("org.gradle.usage", String), "java-runtime")
-      attribute(Attribute.of("org.gradle.libraryelements", String), "aar")
-      attribute(Attribute.of("org.gradle.category", String), "library")
-    }
   }
 }
 
 dependencies {
-  // React Native 0.79.2
   implementation "com.facebook.react:react-android:0.79.2"
+
   if (Boolean.parseBoolean(hermesEnabledProp.toString())) {
     implementation "com.facebook.react:hermes-android:0.79.2"
   }
 
-  // Forzamos a traer exactamente el AAR desde Maven Central (sin transitivos)
-  reactAarExtractor("com.facebook.react:react-android:0.79.2") {
-    transitive = false
-  }
-
-  // --- Google / Firebase ---
   implementation platform('com.google.firebase:firebase-bom:33.5.1')
   implementation 'com.google.android.play:integrity:1.3.0'
-
-  
-  // (Tus demás dependencias Gradle irían aquí si las hubiera)
 }
 
-// Copia la lib nativa desde el AAR hacia jniLibs/arm64-v8a
-tasks.register("injectReactFeatureFlagsSo", Copy) {
-  // Resuelve el AAR específico (variante release) sin tocar el classpath del app
-  def aarFileProvider = providers.provider {
-    def files = configurations.reactAarExtractor.resolve()
-    files.find { it.name.startsWith("react-android-0.79.2") }
-  }
-  def aarFile = aarFileProvider.get()
-  if (aarFile == null) {
-    throw new GradleException("No se pudo resolver com.facebook.react:react-android:0.79.2 (AAR release).")
-  }
-
-  from(zipTree(aarFile)) {
-    include "jni/arm64-v8a/libreact_featureflagsjni.so"
-    // Reubica dentro de jniLibs para que AGP lo empaquete
-    eachFile { f -> f.path = "arm64-v8a/libreact_featureflagsjni.so" }
-    includeEmptyDirs = false
-  }
-  into("$projectDir/src/main/jniLibs")
-}
-
-// Asegura inyección antes de compilar
-preBuild.dependsOn("injectReactFeatureFlagsSo")
-
-// (Opcional) imprimir rutas del AAR si quieres depurar
-tasks.register("printReactArtifacts") {
-  doLast {
-    def files = configurations.reactAarExtractor.resolve()
-    files.each { f -> println ">> react-android AAR (release) -> ${f.absolutePath}" }
-  }
-}
 apply plugin: "com.google.gms.google-services"
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"

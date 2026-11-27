@@ -1,503 +1,2181 @@
-// Scorers.js — Goleadores del torneo (Top 10, con ranking, Avatar y PlayerScreen, footer elevado)
-import React, { Component } from 'react';
+// components/Scorers.js
+// Liga Nacional GT
+//
+// Goleadores conectados exclusivamente al Núcleo propio.
+//
+// Fuente:
+// /sistema/api/scorers.php
+//
+// Diseño:
+// - Top 6
+// - Fotos cuadradas desde player.photo
+// - Solo goles
+// - Mismo card para todos
+// - #1 destacado únicamente por color/rango
+
+import React, {
+  Component,
+} from 'react';
+
 import {
+  ActivityIndicator,
+  FlatList,
   Image,
-  Platform,
+  RefreshControl,
+  SafeAreaView,
   StyleSheet,
   Text,
-  View,
-  Dimensions,
-  FlatList,
-  RefreshControl,
   TouchableOpacity,
-  ActivityIndicator,
+  View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
+import {
+  SoccerBall,
+  Trophy,
+  CaretDown,
+} from 'phosphor-react-native';
 
 import Header from './Header';
+import FooterTabs from './FooterTabs';
 import AdFooter from '../ads/AdFooter';
-import TeamSearchModal from './TeamSearchModal';
-import { API_CUSTOM_DIGITAL, API_WEB_DEPORT_URL } from '@env';
-import { logos } from '../utils/logos';
-import Avatar from './Avatar';
-import { withTheme } from '../utils/ThemeContext';
+
+import {
+  getScorers,
+} from '../services/ligaNacionalApi';
+
+import {
+  withTheme,
+} from '../utils/ThemeContext';
+
+import {
+  BRAND,
+} from '../utils/theme';
 
 
-global.Buffer = global.Buffer || require('buffer').Buffer;
+/* =========================================================
+   CONSTANTES
+========================================================= */
 
-const { width } = Dimensions.get('window');
-const RED  = '#d32f2f';
-const NAVY = '#0b1f3b';
+const GOLD = '#FFC83D';
 
-// Altura del banner y lift sobre la barra de gestos (igual patrón que PlayerScreen)
-const BANNER_H    = 60; // 320x50
-const FOOTER_LIFT = Platform.OS === 'android' ? 48 : 10;
+const MAX_SCORERS = 6;
 
-class Scorers extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      teams: [],
-      scorers: [],
-      refreshing: true,
-      icons: logos,
-      showTeamSearch: false, // 👈 para la lupita
-    };
+const FOOTER_HEIGHT = 60;
+
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function normKey(value = '') {
+  return String(value)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(
+      /[\u0300-\u036f]/g,
+      '',
+    )
+    .replace(
+      /[^a-z0-9]/g,
+      '',
+    );
+}
+
+
+function fixTeamName(value = '') {
+  const raw =
+    String(
+      value || '',
+    ).trim();
+
+
+  const key =
+    normKey(raw);
+
+
+  if (
+    key ===
+    'suchitepequez'
+  ) {
+    return 'Suchitepéquez';
   }
 
-  // ==================== Carga de datos ====================
 
-  getTeams() {
-    return new Promise((resolve, reject) => {
-      fetch(`${API_CUSTOM_DIGITAL}/positions`)
-        .then(response => response.json())
-        .then(result => {
-          const teams = result?.posiciones?.equipo || [];
-          resolve({ teams, refreshing: false });
-        })
-        .catch(error => {
-          reject('Error en la conexión: ' + error);
-        });
-    });
-  }
+  return raw;
+}
 
-  getTeam(id) {
-    return new Promise((resolve, reject) => {
-      fetch(`${API_WEB_DEPORT_URL}/guatemala/statsCenter/teams/${id}.json`)
-        .then(response => response.json())
-        .then(response => {
-          resolve(response);
-        })
-        .catch(error => {
-          reject(error);
-        });
-    });
-  }
 
-  getScorers() {
-    this.setState({ refreshing: true });
+function initials(value = '') {
+  return String(value)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(
+      part =>
+        part
+          .charAt(0)
+          .toUpperCase(),
+    )
+    .join('');
+}
 
-    fetch(`${API_CUSTOM_DIGITAL}/players`)
-      .then(response => response.json())
-      .then(result => {
-        const list = result?.goleadores?.persona || [];
-        this.setState({
-          scorers: list,
-          refreshing: false,
-        });
-      })
-      .catch(error => {
-        alert('Ha ocurrido un error en la conexión.' + error);
-        this.setState({ refreshing: false });
-      });
-  }
 
-  componentDidMount() {
-    // Goleadores
-    this.getScorers();
-
-    // Equipos + plantilla para sacar nombre y foto del jugador
-    this.getTeams()
-      .then(data => {
-        let teams = data.teams;
-        let promises = [];
-
-        for (let i = 0; i < teams.length; i++) {
-          promises.push(this.getTeam(teams[i].id));
-        }
-
-        Promise.all(promises)
-          .then(values => {
-            for (let i = 0; i < teams.length; i++) {
-              teams[i].players = values[i].players;
-              teams[i].name = values[i].info?.name;
-            }
-            this.setState({ teams, refreshing: false });
-          })
-          .catch(err => {
-            alert('Ha ocurrido un error en la conexión.');
-            this.setState({ refreshing: false });
-          });
-      })
-      .catch(err => {
-        alert('Ha ocurrido un error en la conexión.');
-        this.setState({ refreshing: false });
-      });
-  }
-
-  refresh = () => {
-    this.getScorers();
-  };
-
-  // ==================== Helpers ====================
-
-  getPlayerData(item) {
-    // id jugador (API_CUSTOM_DIGITAL)
-    const playerId = parseInt(item.id?.[0], 10);
-    const teamIdFromItem = item.equipo?.[0]?.id?.[0] ?? item.equipo?.[0]?.id;
-
-    for (let i = 0; i < this.state.teams.length; i++) {
-      const t = this.state.teams[i];
-      const tid = t?.id?.[0] ?? t?.id;
-
-      if (teamIdFromItem === tid && t?.players) {
-        const playerWrap = t.players[playerId];
-        if (playerWrap && playerWrap.info && playerWrap.info.name) {
-          const first =
-            (playerWrap.info.name.first || '').split(' ')[0] || '';
-          const last =
-            (playerWrap.info.name.last || '').split(' ')[0] || '';
-          const nombre = `${first} ${last}`.trim();
-
-          // Nombre equipo
-          let teamName = t.name;
-          if (Array.isArray(teamName)) teamName = teamName[0];
-          if (teamName && typeof teamName === 'object') {
-            teamName =
-              teamName.short ||
-              teamName.official ||
-              teamName.common ||
-              '';
-          }
-
-          return {
-            nombre,
-            teamName: teamName || '',
-            playerData: playerWrap,
-            teamId: teamIdFromItem,
-          };
-        }
-      }
+function firstValue(
+  ...values
+) {
+  for (
+    const value of values
+  ) {
+    if (
+      value !== null &&
+      value !== undefined &&
+      value !== ''
+    ) {
+      return value;
     }
-
-    return {
-      nombre: '',
-      teamName: '',
-      playerData: null,
-      teamId: teamIdFromItem,
-    };
   }
 
-  // ==================== Render de cada tarjeta ====================
 
-  renderPlayer = ({ item, index }) => {
-  const { icons } = this.state;
-  const { navigation, theme } = this.props;
-  const colors = theme?.colors ?? {};
-  const isDark = theme.mode === 'dark';
-
-  const goleador = this.getPlayerData(item);
-
-  const nombre   = goleador.nombre || 'Jugador';
-  const teamName = goleador.teamName || (item.equipo?.[0]?.nombre?.[0] || '');
-  const goals    = Number(item.goles || 0);
-  const teamId   = goleador.teamId;
-
-  const logoSource = icons[teamId];
-
-  const playerId = String(item.id?.[0] || '');
-  const scope = 'guatemala';
+  return null;
+}
 
 
-    return (
-      <TouchableOpacity
-        activeOpacity={0.75}
-        onPress={() => {
-          if (!playerId) return;
-          navigation?.navigate('Player', {
-            playerId,
-            teamId,
-            scope,
-            player: goleador.playerData,
-          });
-        }}
-      >
-        <View style={[styles.row, {backgroundColor: colors.cardBg, borderColor: colors.cardBorder, },
-    index === 0 && {
-      backgroundColor: isDark ? '#064e3b' : '#e8f5e9', // ligero verde para el #1
+function numberValue(
+  ...values
+) {
+  const value =
+    Number(
+      firstValue(
+        ...values,
+      ),
+    );
+
+
+  return Number.isFinite(
+    value,
+  )
+    ? value
+    : 0;
+}
+
+
+/* =========================================================
+   NORMALIZAR
+========================================================= */
+
+function normalizeScorer(
+  row,
+  index,
+) {
+  const player =
+    row?.player &&
+    typeof row.player ===
+      'object'
+      ? row.player
+      : {};
+
+
+  const team =
+    row?.team &&
+    typeof row.team ===
+      'object'
+      ? row.team
+      : {};
+
+
+  return {
+    position:
+      numberValue(
+        row?.position,
+        index + 1,
+      ) ||
+      index + 1,
+
+    goals:
+      numberValue(
+        row?.goals,
+        row?.goles,
+      ),
+
+    player: {
+      id:
+        numberValue(
+          player?.id,
+          row?.player_id,
+          row?.playerId,
+        ),
+
+      name:
+        String(
+          firstValue(
+            player?.name,
+            row?.player_name,
+            row?.playerName,
+            'Jugador',
+          ),
+        ),
+
+      slug:
+        String(
+          firstValue(
+            player?.slug,
+            '',
+          ) || '',
+        ),
+
+      photo:
+        firstValue(
+          player?.photo,
+          player?.photo_url,
+          player?.photoUrl,
+          row?.photo,
+          null,
+        ),
+
+      role:
+        String(
+          firstValue(
+            player?.role,
+            '',
+          ) || '',
+        ),
+
+      shirtNumber:
+        firstValue(
+          player?.shirtNumber,
+          player?.shirt_number,
+          null,
+        ),
     },
-  ]}
->
 
-          {/* Número 1–10 */}
-          <View style={styles.rankWrap}>
-            <Text style={[styles.rankText, { color: colors.text }]}>
-  {index + 1}
-</Text>
+    team: {
+      id:
+        numberValue(
+          team?.id,
+          row?.team_id,
+          row?.teamId,
+        ),
 
-          </View>
+      name:
+        fixTeamName(
+          firstValue(
+            team?.name,
+            row?.team_name,
+            row?.teamName,
+            '',
+          ),
+        ),
 
-          {/* Avatar del jugador */}
-          <Avatar
-            id={playerId}
-            player={goleador.playerData}
-            size={44}
-            rounded
-            borderColor="#e7e7e7"
-            style={{ marginRight: 10 }}
+      short:
+        String(
+          firstValue(
+            team?.short,
+            team?.short_name,
+            '',
+          ) || '',
+        ),
+
+      slug:
+        String(
+          firstValue(
+            team?.slug,
+            '',
+          ) || '',
+        ),
+
+      logo:
+        firstValue(
+          team?.logo,
+          team?.logo_url,
+          team?.logoUrl,
+          null,
+        ),
+    },
+  };
+}
+
+
+function normalizeScorers(
+  payload,
+) {
+  const source =
+    Array.isArray(
+      payload?.scorers,
+    )
+      ? payload.scorers
+      : Array.isArray(
+          payload?.data,
+        )
+        ? payload.data
+        : Array.isArray(
+            payload,
+          )
+          ? payload
+          : [];
+
+
+  return source
+    .map(
+      normalizeScorer,
+    )
+    .sort(
+      (
+        a,
+        b,
+      ) => {
+        if (
+          a.goals !==
+          b.goals
+        ) {
+          return (
+            b.goals -
+            a.goals
+          );
+        }
+
+
+        return (
+          a.position -
+          b.position
+        );
+      },
+    )
+    .slice(
+      0,
+      MAX_SCORERS,
+    )
+    .map(
+      (
+        row,
+        index,
+      ) => ({
+        ...row,
+
+        position:
+          index + 1,
+      }),
+    );
+}
+
+
+/* =========================================================
+   FOTO JUGADOR
+========================================================= */
+
+function PlayerPhoto({
+  uri,
+  name,
+  colors,
+}) {
+  const [
+    failed,
+    setFailed,
+  ] =
+    React.useState(false);
+
+
+  React.useEffect(
+    () => {
+      setFailed(false);
+    },
+    [
+      uri,
+    ],
+  );
+
+
+  if (
+    uri &&
+    !failed
+  ) {
+    return (
+      <Image
+        source={{
+          uri,
+        }}
+
+        style={
+          styles.playerPhoto
+        }
+
+        resizeMode="cover"
+
+        onError={
+          () =>
+            setFailed(true)
+        }
+      />
+    );
+  }
+
+
+  return (
+    <View
+      style={[
+        styles.playerPhoto,
+        styles.playerFallback,
+
+        {
+          backgroundColor:
+            colors.cardBorder,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.playerFallbackText,
+
+          {
+            color:
+              colors.textMuted,
+          },
+        ]}
+      >
+        {initials(name) ||
+          '?'}
+      </Text>
+    </View>
+  );
+}
+
+
+/* =========================================================
+   LOGO EQUIPO
+========================================================= */
+
+function TeamLogo({
+  uri,
+  name,
+  colors,
+}) {
+  const [
+    failed,
+    setFailed,
+  ] =
+    React.useState(false);
+
+
+  React.useEffect(
+    () => {
+      setFailed(false);
+    },
+    [
+      uri,
+    ],
+  );
+
+
+  if (
+    uri &&
+    !failed
+  ) {
+    return (
+      <Image
+        source={{
+          uri,
+        }}
+
+        style={
+          styles.teamLogo
+        }
+
+        resizeMode="contain"
+
+        onError={
+          () =>
+            setFailed(true)
+        }
+      />
+    );
+  }
+
+
+  return (
+    <View
+      style={[
+        styles.teamLogo,
+        styles.teamLogoFallback,
+
+        {
+          borderColor:
+            colors.cardBorder,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.teamLogoFallbackText,
+
+          {
+            color:
+              colors.textMuted,
+          },
+        ]}
+      >
+        {initials(name)
+          .slice(
+            0,
+            1,
+          ) ||
+          '?'}
+      </Text>
+    </View>
+  );
+}
+
+
+/* =========================================================
+   RANK
+========================================================= */
+
+function RankBadge({
+  position,
+  isDark,
+}) {
+  const first =
+    position === 1;
+
+
+  return (
+    <View
+      style={[
+        styles.rankBadge,
+
+        {
+          backgroundColor:
+            first
+              ? GOLD
+              : isDark
+                ? 'rgba(255,255,255,0.06)'
+                : '#EEF4FC',
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.rankText,
+
+          {
+            color:
+              first
+                ? '#17214F'
+                : '#15245F',
+          },
+        ]}
+      >
+        {position}
+      </Text>
+    </View>
+  );
+}
+
+
+/* =========================================================
+   FILA GOLEADOR
+========================================================= */
+
+function ScorerRow({
+  item,
+  navigation,
+  colors,
+  isDark,
+}) {
+  const position =
+    Number(
+      item?.position ||
+      0,
+    );
+
+
+  const goals =
+    Number(
+      item?.goals ||
+      0,
+    );
+
+
+  const player =
+    item?.player ||
+    {};
+
+
+  const team =
+    item?.team ||
+    {};
+
+
+  const first =
+    position === 1;
+
+
+  const openPlayer =
+    () => {
+      const playerId =
+        Number(
+          player?.id ||
+          0,
+        );
+
+
+      if (!playerId) {
+        return;
+      }
+
+
+      navigation?.navigate?.(
+        'Player',
+        {
+          playerId,
+
+          teamId:
+            Number(
+              team?.id ||
+              0,
+            ),
+
+          scope:
+            'guatemala',
+
+          playerName:
+            player?.name ||
+            '',
+
+          player: {
+            id:
+              playerId,
+
+            name:
+              player?.name ||
+              '',
+
+            photo:
+              player?.photo ||
+              null,
+
+            role:
+              player?.role ||
+              '',
+
+            shirtNumber:
+              player?.shirtNumber ??
+              null,
+          },
+
+          team: {
+            id:
+              Number(
+                team?.id ||
+                0,
+              ),
+
+            name:
+              team?.name ||
+              '',
+
+            short:
+              team?.short ||
+              '',
+
+            logo:
+              team?.logo ||
+              null,
+          },
+        },
+      );
+    };
+
+
+  return (
+    <TouchableOpacity
+      activeOpacity={
+        0.78
+      }
+
+      onPress={
+        openPlayer
+      }
+
+      style={[
+        styles.scorerCard,
+
+        {
+          backgroundColor:
+            first
+              ? isDark
+                ? 'rgba(255,200,61,0.07)'
+                : '#FFFDF8'
+              : colors.cardBg,
+
+          borderColor:
+            first
+              ? isDark
+                ? 'rgba(255,200,61,0.22)'
+                : '#F3E5B4'
+              : colors.cardBorder,
+
+          shadowColor:
+            isDark
+              ? '#000000'
+              : '#213467',
+        },
+      ]}
+    >
+
+      {/* POSICIÓN */}
+
+      <RankBadge
+        position={
+          position
+        }
+
+        isDark={
+          isDark
+        }
+      />
+
+
+      {/* FOTO */}
+
+      <PlayerPhoto
+        uri={
+          player?.photo
+        }
+
+        name={
+          player?.name
+        }
+
+        colors={
+          colors
+        }
+      />
+
+
+      {/* INFO */}
+
+      <View
+        style={
+          styles.playerInfo
+        }
+      >
+
+        <Text
+          numberOfLines={2}
+
+          style={[
+            styles.playerName,
+
+            {
+              color:
+                colors.text,
+            },
+          ]}
+        >
+          {player?.name ||
+            'Jugador'}
+        </Text>
+
+
+        <View
+          style={
+            styles.teamRow
+          }
+        >
+
+          <TeamLogo
+            uri={
+              team?.logo
+            }
+
+            name={
+              team?.name
+            }
+
+            colors={
+              colors
+            }
           />
 
-          {/* Nombre + equipo */}
-          <View style={{ flex: 1 }}>
-            {index === 0 && (
-  <Text
-    style={[
-      styles.leaderLabel,
-      { color: isDark ? '#fbbf24' : '#b45309' },
-    ]}
-  >
-    Máximo goleador
-  </Text>
-)}
 
+          <Text
+            numberOfLines={1}
 
-            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1} > {nombre} </Text>
+            style={[
+              styles.teamName,
 
+              {
+                color:
+                  colors.text,
+              },
+            ]}
+          >
+            {team?.name ||
+              'Equipo'}
+          </Text>
 
-            <View style={styles.teamRow}>
-              {logoSource && (
-                <Image
-                  source={logoSource}
-                  style={styles.teamLogo}
-                  resizeMode="contain"
-                />
-              )}
-              <Text style={[styles.sub, { color: colors.textMuted }]} numberOfLines={1} >
-                {teamName}
-              </Text>
-            </View>
-          </View>
-
-          {/* 👟 Bota de oro en medio, solo para el #1 */}
-          {index === 0 && (
-            <Image
-              source={require('../resources/golden_boot.png')}
-              style={styles.bootIconMiddle}
-              resizeMode="contain"
-            />
-          )}
-
-          {/* Goles */}
-          <View style={styles.goalsWrap}>
-            <Text style={[styles.goalsNum, { color: RED }]}>{goals}</Text>
-            <Text style={[styles.goalsLabel, { color: colors.textMuted }]}>
-              {goals === 1 ? 'Gol' : 'Goles'}
-            </Text>
-
-          </View>
         </View>
-      </TouchableOpacity>
-    );
+
+      </View>
+
+
+      {/* GOLES */}
+
+      <View
+        style={
+          styles.goalsColumn
+        }
+      >
+
+        <Text
+          style={[
+            styles.goalsNumber,
+
+            {
+              color:
+                colors.text,
+            },
+          ]}
+        >
+          {goals}
+        </Text>
+
+
+        <Text
+          style={[
+            styles.goalsText,
+
+            {
+              color:
+                colors.textMuted,
+            },
+          ]}
+        >
+          {goals === 1
+            ? 'gol'
+            : 'goles'}
+        </Text>
+
+      </View>
+
+    </TouchableOpacity>
+  );
+}
+
+
+/* =========================================================
+   HEADER DE CONTENIDO
+========================================================= */
+
+function ScreenIntro({
+  colors,
+  isDark,
+}) {
+  return (
+    <View
+      style={
+        styles.intro
+      }
+    >
+
+      <View
+        style={
+          styles.introTitleSide
+        }
+      >
+
+        <View
+          style={[
+            styles.ballIconWrap,
+
+            {
+              backgroundColor:
+                isDark
+                  ? 'rgba(24,190,85,0.13)'
+                  : '#FFFFFF',
+
+              borderColor:
+                isDark
+                  ? 'rgba(255,255,255,0.08)'
+                  : '#EDF1F7',
+            },
+          ]}
+        >
+          <SoccerBall
+            size={28}
+            weight="fill"
+            color="#17B956"
+          />
+        </View>
+
+
+        <View
+          style={
+            styles.introText
+          }
+        >
+          <Text
+            style={[
+              styles.screenTitle,
+
+              {
+                color:
+                  colors.text,
+              },
+            ]}
+          >
+            Goleadores
+          </Text>
+
+
+          <Text
+            style={[
+              styles.screenSubtitle,
+
+              {
+                color:
+                  colors.textMuted,
+              },
+            ]}
+          >
+            Top 6 del torneo
+          </Text>
+        </View>
+
+      </View>
+
+
+      <View
+        style={
+          styles.filters
+        }
+      >
+
+        <View
+          style={[
+            styles.filterPill,
+
+            {
+              backgroundColor:
+                colors.cardBg,
+
+              borderColor:
+                colors.cardBorder,
+            },
+          ]}
+        >
+          <Trophy
+            size={14}
+            weight="fill"
+            color={BRAND.primary}
+          />
+
+          <Text
+            numberOfLines={1}
+
+            style={
+              styles.filterText
+            }
+          >
+            Liga Nacional GT
+          </Text>
+
+          <CaretDown
+            size={11}
+            weight="bold"
+            color={BRAND.primary}
+          />
+        </View>
+
+
+        <View
+          style={[
+            styles.tournamentPill,
+
+            {
+              backgroundColor:
+                colors.cardBg,
+
+              borderColor:
+                colors.cardBorder,
+            },
+          ]}
+        >
+          <Text
+            numberOfLines={1}
+
+            style={
+              styles.filterText
+            }
+          >
+            Apertura
+          </Text>
+
+          <CaretDown
+            size={11}
+            weight="bold"
+            color={BRAND.primary}
+          />
+        </View>
+
+      </View>
+
+    </View>
+  );
+}
+
+
+/* =========================================================
+   SCREEN
+========================================================= */
+
+class Scorers extends Component {
+
+  state = {
+    scorers: [],
+
+    loading:
+      true,
+
+    refreshing:
+      false,
+
+    error:
+      '',
   };
 
-  // ==================== Render principal ====================
+
+  mounted =
+    false;
+
+
+  componentDidMount() {
+    this.mounted =
+      true;
+
+    this.load();
+  }
+
+
+  componentWillUnmount() {
+    this.mounted =
+      false;
+  }
+
+
+  /* =======================================================
+     LOAD
+  ======================================================= */
+
+  load =
+    async ({
+      refresh =
+        false,
+    } = {}) => {
+
+      if (refresh) {
+        this.setState({
+          refreshing:
+            true,
+
+          error:
+            '',
+        });
+
+      } else {
+        this.setState({
+          loading:
+            true,
+
+          error:
+            '',
+        });
+      }
+
+
+      try {
+        const payload =
+          await getScorers();
+
+
+        const scorers =
+          normalizeScorers(
+            payload,
+          );
+
+
+        if (
+          !this.mounted
+        ) {
+          return;
+        }
+
+
+        this.setState({
+          scorers,
+
+          error:
+            '',
+        });
+
+
+      } catch (
+        error
+      ) {
+        console.warn(
+          '[Scorers]',
+          error?.message ||
+          error,
+        );
+
+
+        if (
+          this.mounted
+        ) {
+          this.setState({
+            error:
+              'No se pudieron cargar los goleadores.',
+          });
+        }
+
+
+      } finally {
+        if (
+          this.mounted
+        ) {
+          this.setState({
+            loading:
+              false,
+
+            refreshing:
+              false,
+          });
+        }
+      }
+    };
+
+
+  refresh =
+    () => {
+      this.load({
+        refresh:
+          true,
+      });
+    };
+
+
+  /* =======================================================
+     RENDER ITEM
+  ======================================================= */
+
+  renderItem =
+    ({
+      item,
+    }) => {
+      const {
+        navigation,
+        theme,
+      } =
+        this.props;
+
+
+      return (
+        <ScorerRow
+          item={
+            item
+          }
+
+          navigation={
+            navigation
+          }
+
+          colors={
+            theme.colors
+          }
+
+          isDark={
+            theme.mode ===
+            'dark'
+          }
+        />
+      );
+    };
+
+
+  keyExtractor =
+    (
+      item,
+      index,
+    ) =>
+      String(
+        item?.player?.id ||
+        `scorer-${index}`,
+      );
+
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   render() {
-    const { refreshing, scorers, showTeamSearch } = this.state;
-    const { navigation, theme } = this.props;      // 👈 AÑADIDO
-    const colors = theme?.colors ?? {};            // 👈 AÑADIDO
-    const isDark = theme?.mode === 'dark';         // (por si lo quisieras usar aquí luego)
+    const {
+      scorers,
+      loading,
+      refreshing,
+      error,
+    } =
+      this.state;
 
-    // Ordenamos por goles desc y tomamos solo Top 10
-    const sorted = [...scorers].sort((a, b) => {
-      const gA = Number(a.goles || 0);
-      const gB = Number(b.goles || 0);
-      return gB - gA;
-    });
-    const top10 = sorted.slice(0, 10);
 
-    const loadingInitial = refreshing && scorers.length === 0;
+    const {
+      navigation,
+      theme,
+    } =
+      this.props;
+
+
+    const colors =
+      theme.colors;
+
+
+    const isDark =
+      theme.mode ===
+      'dark';
+
 
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.screenBg }]} edges={['bottom']} >
+      <SafeAreaView
+        style={[
+          styles.screen,
 
-        {/* Header tipo TeamScreen: flecha, título y lupita FUNCIONAL */}
+          {
+            backgroundColor:
+              colors.screenBg,
+          },
+        ]}
+      >
+
+        {/* HEADER GENERAL */}
+
         <Header
-          navigation={navigation}
-          title="Goleadores"
+          navigation={
+            navigation
+          }
+
+          showLogo
+
+          logoName="Liga Nacional GT"
+
+          logoSource={
+            require(
+              '../resources/logos/app-logo.png',
+            )
+          }
+
+          logoSize={32}
+
           showSearch
-          onSearchPress={() => this.setState({ showTeamSearch: true })}
+
+          onSearchPress={
+            () =>
+              navigation?.navigate?.(
+                'Teams',
+              )
+          }
+
+          showSettings
+
+          onSettingsPress={
+            () =>
+              navigation?.navigate?.(
+                'Settings',
+              )
+          }
+
+          disableBack
         />
 
-        {loadingInitial ? (
-          <View style={styles.center}>
-            <ActivityIndicator color={RED} />
-            <Text style={[styles.muted, { color: colors.textMuted }]}>
+
+        {/* CONTENIDO */}
+
+        {loading ? (
+
+          <View
+            style={
+              styles.center
+            }
+          >
+            <ActivityIndicator
+              size="large"
+              color={
+                BRAND.primary
+              }
+            />
+
+            <Text
+              style={[
+                styles.loadingText,
+
+                {
+                  color:
+                    colors.textMuted,
+                },
+              ]}
+            >
               Cargando goleadores…
             </Text>
           </View>
 
-        ) : (
-          <FlatList
-            data={top10}
-            keyExtractor={(item, index) => index.toString()}
-            renderItem={this.renderPlayer}
-            ItemSeparatorComponent={() => <View style={styles.sep} />}
-            contentContainerStyle={{
-              paddingHorizontal: 10,
-              paddingTop: 8,
-              // espacio para que la lista no choque con el banner fijo
-              paddingBottom: BANNER_H + 10,
-              backgroundColor: colors.screenBg,
-            }}
-            scrollIndicatorInsets={{ bottom: BANNER_H }}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={this.refresh}
-                colors={[RED]}
-                tintColor={RED}
-                progressBackgroundColor={colors.cardBg}
+        ) : error &&
+          !scorers.length ? (
 
+          <View
+            style={
+              styles.center
+            }
+          >
+            <SoccerBall
+              size={34}
+              color={
+                BRAND.primary
+              }
+              weight="duotone"
+            />
+
+            <Text
+              style={[
+                styles.errorTitle,
+
+                {
+                  color:
+                    colors.text,
+                },
+              ]}
+            >
+              No se pudo cargar
+            </Text>
+
+            <Text
+              style={[
+                styles.errorText,
+
+                {
+                  color:
+                    colors.textMuted,
+                },
+              ]}
+            >
+              {error}
+            </Text>
+
+
+            <TouchableOpacity
+              activeOpacity={
+                0.8
+              }
+
+              onPress={
+                () =>
+                  this.load()
+              }
+
+              style={[
+                styles.retryButton,
+
+                {
+                  backgroundColor:
+                    BRAND.primary,
+                },
+              ]}
+            >
+              <Text
+                style={
+                  styles.retryButtonText
+                }
+              >
+                Reintentar
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+        ) : (
+
+          <FlatList
+            data={
+              scorers
+            }
+
+            keyExtractor={
+              this.keyExtractor
+            }
+
+            renderItem={
+              this.renderItem
+            }
+
+            showsVerticalScrollIndicator={
+              false
+            }
+
+            ListHeaderComponent={
+              <ScreenIntro
+                colors={
+                  colors
+                }
+
+                isDark={
+                  isDark
+                }
               />
             }
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              !refreshing && !top10.length ? (
-                <View style={styles.center}>
-                  <Text style={[styles.muted, { color: colors.textMuted }]}>
-                    ⚽ Aún no hay datos de goleadores.
-                  </Text>
 
-                </View>
-              ) : null
+            contentContainerStyle={
+              styles.listContent
+            }
+
+            refreshControl={
+              <RefreshControl
+                refreshing={
+                  refreshing
+                }
+
+                onRefresh={
+                  this.refresh
+                }
+
+                colors={[
+                  BRAND.primary,
+                ]}
+
+                tintColor={
+                  BRAND.primary
+                }
+
+                progressBackgroundColor={
+                  colors.cardBg
+                }
+              />
+            }
+
+            ListEmptyComponent={
+              <View
+                style={
+                  styles.empty
+                }
+              >
+                <SoccerBall
+                  size={34}
+                  weight="duotone"
+                  color={
+                    BRAND.primary
+                  }
+                />
+
+                <Text
+                  style={[
+                    styles.emptyTitle,
+
+                    {
+                      color:
+                        colors.text,
+                    },
+                  ]}
+                >
+                  Todavía no hay goleadores
+                </Text>
+
+                <Text
+                  style={[
+                    styles.emptyText,
+
+                    {
+                      color:
+                        colors.textMuted,
+                    },
+                  ]}
+                >
+                  Los goles registrados aparecerán aquí automáticamente.
+                </Text>
+              </View>
+            }
+
+            ListFooterComponent={
+              <View
+                style={
+                  styles.adWrap
+                }
+              >
+                <AdFooter />
+              </View>
             }
           />
         )}
 
-        {/* Modal de búsqueda de equipos, igual que en TeamScreen */}
-        <TeamSearchModal
-          visible={showTeamSearch}
-          onClose={() => this.setState({ showTeamSearch: false })}
-          onSelect={(team) => {
-            this.setState({ showTeamSearch: false });
-            if (!team) return;
-            navigation.navigate('TeamScreen', {
-              teamId: team.id,
-              scope: team.scope,
-            });
-          }}
-        />
 
-        {/* Ad fijo elevado sobre la zona de gestos */}
+        {/* BOTTOM MENU */}
+
         <View
-          pointerEvents="box-none"
-          style={[styles.footerFixed, { bottom: FOOTER_LIFT }]}
+          style={[
+            styles.footerFixed,
+
+            {
+              backgroundColor:
+                colors.cardBg,
+
+              borderTopColor:
+                colors.cardBorder,
+            },
+          ]}
         >
-          <AdFooter />
+          <FooterTabs
+            navigation={
+              navigation
+            }
+
+            routeName="Scorers"
+          />
         </View>
+
       </SafeAreaView>
     );
   }
 }
 
-// ==================== Estilos ====================
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-    paddingTop: Platform.OS === 'ios' ? 20 : 0,
-  },
+/* =========================================================
+   STYLES
+========================================================= */
 
-  center: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
-  },
-  muted: {
-    color: '#666',
-    fontSize: 13,
-    marginTop: 6,
-  },
+const styles =
+  StyleSheet.create({
 
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
-    padding: 10,
-    borderRadius: 10,
-  },
-  sep: {
-    height: 10,
-  },
+    screen: {
+      flex:
+        1,
+    },
 
-  // Top 1 destacado
-  firstPlace: {
-    backgroundColor: '#e8f5e9',
-  },
-  leaderLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#b45309',
-    marginBottom: 2,
-  },
 
-  // Rank 1–10
-  rankWrap: {
-    width: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 4,
-  },
-  rankText: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0f1235',
-  },
+    listContent: {
+      paddingHorizontal:
+        12,
 
-  name: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: NAVY,
-  },
-  teamRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  teamLogo: {
-    width: 20,
-    height: 20,
-    marginRight: 4,
-  },
-  sub: {
-    fontSize: 12,
-    color: '#555',
-  },
+      paddingBottom:
+        FOOTER_HEIGHT +
+        70,
+    },
 
-  goalsWrap: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    marginLeft: 4,
-    minWidth: 48,
-  },
-  goalsNum: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: RED,
-  },
-  goalsLabel: {
-    fontSize: 11,
-    color: '#6b7280',
-    marginTop: 2,
-  },
 
-  // Footer fijo elevado (patrón PlayerScreen)
-  footerFixed: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
+    /* =====================================================
+       INTRO
+    ===================================================== */
 
-  bootIconMiddle: {
-    width: 40,
-    height: 40,
-    marginHorizontal: 6,
-    alignSelf: 'center',
-  },
-});
-export default withTheme(Scorers);
+    intro: {
+      paddingTop:
+        14,
+
+      paddingBottom:
+        14,
+    },
+
+
+    introTitleSide: {
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      marginBottom:
+        12,
+    },
+
+
+    ballIconWrap: {
+      width:
+        50,
+
+      height:
+        50,
+
+      borderRadius:
+        15,
+
+      borderWidth:
+        1,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      marginRight:
+        10,
+    },
+
+
+    introText: {
+      flex:
+        1,
+    },
+
+
+    screenTitle: {
+      fontFamily:
+        'Poppins-Bold',
+
+      fontSize:
+        24,
+
+      lineHeight:
+        29,
+
+      includeFontPadding:
+        false,
+    },
+
+
+    screenSubtitle: {
+      marginTop:
+        1,
+
+      fontFamily:
+        'Poppins-Regular',
+
+      fontSize:
+        13,
+
+      lineHeight:
+        18,
+
+      includeFontPadding:
+        false,
+    },
+
+
+    filters: {
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      gap:
+        8,
+    },
+
+
+    filterPill: {
+      flex:
+        1,
+
+      height:
+        40,
+
+      borderRadius:
+        16,
+
+      borderWidth:
+        1,
+
+      paddingHorizontal:
+        11,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      gap:
+        6,
+    },
+
+
+    tournamentPill: {
+      width:
+        102,
+
+      height:
+        40,
+
+      borderRadius:
+        16,
+
+      borderWidth:
+        1,
+
+      paddingHorizontal:
+        10,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      gap:
+        5,
+    },
+
+
+    filterText: {
+      color:
+        BRAND.primary,
+
+      fontFamily:
+        'Poppins-SemiBold',
+
+      fontSize:
+        10,
+
+      includeFontPadding:
+        false,
+    },
+
+
+    /* =====================================================
+       CARDS
+    ===================================================== */
+
+    scorerCard: {
+      minHeight:
+        102,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+
+      borderRadius:
+        18,
+
+      borderWidth:
+        1,
+
+      paddingHorizontal:
+        13,
+
+      paddingVertical:
+        10,
+
+      marginBottom:
+        10,
+
+      shadowOffset: {
+        width:
+          0,
+
+        height:
+          3,
+      },
+
+      shadowOpacity:
+        0.055,
+
+      shadowRadius:
+        8,
+
+      elevation:
+        2,
+    },
+
+
+    /* Rank */
+
+    rankBadge: {
+      width:
+        42,
+
+      height:
+        42,
+
+      borderRadius:
+        21,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      marginRight:
+        11,
+    },
+
+
+    rankText: {
+      fontFamily:
+        'Poppins-Bold',
+
+      fontSize:
+        17,
+
+      includeFontPadding:
+        false,
+    },
+
+
+    /* Foto */
+
+    playerPhoto: {
+      width:
+        76,
+
+      height:
+        76,
+
+      borderRadius:
+        15,
+
+      marginRight:
+        14,
+    },
+
+
+    playerFallback: {
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+    },
+
+
+    playerFallbackText: {
+      fontFamily:
+        'Poppins-Bold',
+
+      fontSize:
+        16,
+
+      includeFontPadding:
+        false,
+    },
+
+
+    /* Info */
+
+    playerInfo: {
+      flex:
+        1,
+
+      minWidth:
+        0,
+
+      paddingRight:
+        8,
+    },
+
+
+    playerName: {
+      fontFamily:
+        'Poppins-Bold',
+
+      fontSize:
+        15,
+
+      lineHeight:
+        19,
+
+      includeFontPadding:
+        false,
+    },
+
+
+    teamRow: {
+      marginTop:
+        6,
+
+      flexDirection:
+        'row',
+
+      alignItems:
+        'center',
+    },
+
+
+    teamLogo: {
+      width:
+        27,
+
+      height:
+        27,
+
+      marginRight:
+        7,
+    },
+
+
+    teamLogoFallback: {
+      borderWidth:
+        1,
+
+      borderRadius:
+        7,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+    },
+
+
+    teamLogoFallbackText: {
+      fontFamily:
+        'Poppins-Bold',
+
+      fontSize:
+        8,
+    },
+
+
+    teamName: {
+      flex:
+        1,
+
+      fontFamily:
+        'Poppins-Regular',
+
+      fontSize:
+        11.5,
+
+      lineHeight:
+        16,
+
+      includeFontPadding:
+        false,
+    },
+
+
+    /* Goles */
+
+    goalsColumn: {
+      width:
+        55,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+    },
+
+
+    goalsNumber: {
+      fontFamily:
+        'Poppins-Bold',
+
+      fontSize:
+        27,
+
+      lineHeight:
+        31,
+
+      includeFontPadding:
+        false,
+    },
+
+
+    goalsText: {
+      marginTop:
+        1,
+
+      fontFamily:
+        'Poppins-Regular',
+
+      fontSize:
+        10,
+
+      lineHeight:
+        13,
+
+      includeFontPadding:
+        false,
+    },
+
+
+    /* =====================================================
+       ESTADOS
+    ===================================================== */
+
+    center: {
+      flex:
+        1,
+
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      paddingHorizontal:
+        24,
+
+      paddingBottom:
+        FOOTER_HEIGHT,
+    },
+
+
+    loadingText: {
+      marginTop:
+        8,
+
+      fontFamily:
+        'Poppins-Regular',
+
+      fontSize:
+        11,
+    },
+
+
+    errorTitle: {
+      marginTop:
+        8,
+
+      fontFamily:
+        'Poppins-SemiBold',
+
+      fontSize:
+        14,
+    },
+
+
+    errorText: {
+      marginTop:
+        3,
+
+      fontFamily:
+        'Poppins-Regular',
+
+      fontSize:
+        10,
+
+      textAlign:
+        'center',
+    },
+
+
+    retryButton: {
+      marginTop:
+        14,
+
+      borderRadius:
+        999,
+
+      paddingHorizontal:
+        20,
+
+      paddingVertical:
+        9,
+    },
+
+
+    retryButtonText: {
+      color:
+        '#FFFFFF',
+
+      fontFamily:
+        'Poppins-SemiBold',
+
+      fontSize:
+        11,
+    },
+
+
+    empty: {
+      alignItems:
+        'center',
+
+      justifyContent:
+        'center',
+
+      paddingVertical:
+        60,
+
+      paddingHorizontal:
+        25,
+    },
+
+
+    emptyTitle: {
+      marginTop:
+        8,
+
+      fontFamily:
+        'Poppins-SemiBold',
+
+      fontSize:
+        13,
+    },
+
+
+    emptyText: {
+      maxWidth:
+        260,
+
+      marginTop:
+        4,
+
+      fontFamily:
+        'Poppins-Regular',
+
+      fontSize:
+        10,
+
+      lineHeight:
+        15,
+
+      textAlign:
+        'center',
+    },
+
+
+    /* =====================================================
+       ADS
+    ===================================================== */
+
+    adWrap: {
+      marginTop:
+        4,
+
+      marginBottom:
+        8,
+    },
+
+
+    /* =====================================================
+       FOOTER
+    ===================================================== */
+
+    footerFixed: {
+      position:
+        'absolute',
+
+      left:
+        0,
+
+      right:
+        0,
+
+      bottom:
+        0,
+
+      borderTopWidth:
+        StyleSheet.hairlineWidth,
+    },
+
+  });
+
+
+export default withTheme(
+  Scorers,
+);

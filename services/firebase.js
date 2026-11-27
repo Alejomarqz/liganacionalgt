@@ -5,7 +5,6 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import messaging from '@react-native-firebase/messaging';
 
-
 /* ============================================================================
  *  Autenticación anónima
  * ==========================================================================*/
@@ -99,19 +98,36 @@ export function onFollowTeam(teamId, cb) {
     } catch {}
   };
 }
+
+/* ============================================================================
+ *  Push / FCM
+ * ==========================================================================*/
 // Inicializa permisos de notificaciones y registro del dispositivo (FCM)
 export async function initPush() {
   try {
-    // 1) Pedir permiso (iOS / Android 13+)
-    await messaging().requestPermission().catch(() => {});
+    const permission = await messaging().requestPermission().catch((e) => {
+      console.log('[FCM] requestPermission error:', e?.message || e);
+      return null;
+    });
 
-    // 2) Registrar el dispositivo para mensajes remotos
-    await messaging().registerDeviceForRemoteMessages().catch(() => {});
+    console.log('[FCM] permission:', permission);
 
-    // 3) Obtener el token actual (útil para debug o enviar a tu backend si quisieras)
-    const token = await messaging().getToken().catch(() => null);
-    if (__DEV__) console.log('[FCM] token:', token);
+    await messaging().registerDeviceForRemoteMessages().catch((e) => {
+      console.log('[FCM] registerDeviceForRemoteMessages error:', e?.message || e);
+    });
+
+    const token = await messaging().getToken().catch((e) => {
+      console.log('[FCM] getToken error:', e?.message || e);
+      return null;
+    });
+
+    console.log('================ FCM TOKEN ================');
+    console.log(token);
+    console.log('===========================================');
+
+    return token;
   } catch (e) {
     console.warn('[FCM] initPush error:', e?.message || e);
+    return null;
   }
 }

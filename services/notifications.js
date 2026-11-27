@@ -1,44 +1,45 @@
 // services/notifications.js
-// ======================================================
-// Push routing + topics + helpers para React Navigation
-// ======================================================
+// Push routing + topics + permisos + analytics
+// Liga Nacional GT - Sistema PRO sin Notifee
 
-import { Platform, PermissionsAndroid, InteractionManager } from 'react-native';
+import { Platform, PermissionsAndroid, InteractionManager, Vibration } from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import analytics from '@react-native-firebase/analytics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CommonActions } from '@react-navigation/native'; // ← NUEVO
 
-import { setPushGrace } from '../ads/AdManager';
-import { setOpenAdGrace } from '../ads/AppOpenAdManager';
+import { evaluateNotification } from './notificationlevels';
+import {
+  addFollowedTeam,
+  removeFollowedTeam,
+  addFollowedMatch,
+  removeFollowedMatch,
+} from './notificationlevels';
 
-
-// =====================
-// Estado interno simple
-// =====================
 let navRef = null;
 let navReady = false;
-let pendingRouteData = null;   // último payload data recibido por push
+let pendingRouteData = null;
 let hasTriedInitialNav = false;
 let startedFromPush = false;
+let _showInAppBanner = null;
 
-// =====================
-// Claves de almacenamiento
-// =====================
+const GLOBAL_TOPIC = 'liganacionalgt';
+
 const KS = {
-  FOLLOW_MATCH: (id) => `fc_follow_match_${id}`,
-  FOLLOW_TEAM:  (id) => `fc_follow_team_${id}`,
+  FOLLOW_MATCH: (id) => `lgt_follow_match_${id}`,
+  FOLLOW_TEAM: (id) => `lgt_follow_team_${id}`,
+  GLOBAL_TOPIC: `lgt_global_topic_${GLOBAL_TOPIC}_v1`,
 };
 
-// =====================
-// Helpers de texto y tabs
-// =====================
+export function registerInAppBanner(fn) {
+  _showInAppBanner = fn;
+}
+
 const norm = (s = '') =>
   s.toString()
-   .toLowerCase()
-   .normalize('NFD')
-   .replace(/[\u0300-\u036f]/g, '')
-   .replace(/\s+/g, '');
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, '');
 
 const TAB_ALIAS = {
   alineacion: 'Alineaciones',
@@ -54,383 +55,431 @@ const TAB_ALIAS = {
   envivo: 'En vivo',
   'en-vivo': 'En vivo',
   'en_vivo': 'En vivo',
+  resumen: 'Resumen',
 };
 
 function mapInitialTab(raw) {
   if (!raw) return null;
-  const key = norm(raw);
-  return TAB_ALIAS[key] || raw;
+  return TAB_ALIAS[norm(raw)] || raw;
 }
 
-// =====================
-// Analytics helper
-// =====================
 async function logA(eventName, params = {}) {
   try {
     await analytics().logEvent(eventName, params);
-  } catch {
-    // silencioso
-  }
+  } catch {}
 }
 
-
-// =====================
-// Permisos
-// =====================
-export async function requestUserPermissionIfNeeded() {
+async function prepareMessaging() {
   try {
-    // Android 13+ requiere POST_NOTIFICATIONS
     if (Platform.OS === 'android' && Platform.Version >= 33) {
-      const granted = await PermissionsAndroid.request(
+      await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
       );
-      // granted: 'granted' | 'denied' | 'never_ask_again'
-      // no necesitamos usar el valor aquí
     }
 
-    // iOS / Android (FCM) – pide permiso en iOS y registra en Android
-    const authStatus = await messaging().requestPermission();
-    // Opcional: puedes loguear el status si quieres
-    return authStatus;
+    await messaging().requestPermission().catch(() => {});
+    await messaging().registerDeviceForRemoteMessages().catch(() => {});
+
+    const token = await messaging().getToken().catch(() => null);
+
+    if (__DEV__) {
+      console.log('[FCM] ready token:', token);
+    }
+
+    return token;
   } catch (e) {
-    // Silencioso para no romper flujo
+    if (__DEV__) console.log('[FCM] prepareMessaging error:', e?.message || e);
     return null;
   }
 }
 
-// =====================
-// Flags "empecé por push"
-// =====================
+export async function requestUserPermissionIfNeeded() {
+  try {
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+      );
+    }
+
+    const authStatus = await messaging().requestPermission();
+    return authStatus;
+  } catch {
+    return null;
+  }
+}
+
 export function setStartedFromPush(v) {
   startedFromPush = !!v;
 }
+
 export function getStartedFromPush() {
   return startedFromPush;
 }
 
-// =====================
-// Suscripción a tópicos
-// =====================
+// PARTIDO
 export async function followMatch(matchId) {
   const id = String(matchId || '').trim();
   if (!id) return false;
 
-  await messaging().subscribeToTopic(`match_${id}`);
-  await AsyncStorage.setItem(KS.FOLLOW_MATCH(id), '1');
+  try {
+    await prepareMessaging();
 
-  await logA('follow_match', { match_id: id }); // ✅ NUEVO
-  return true;
+    const topic = `match_${id}`;
+    console.log('[FCM] intentando suscribir partido:', topic);
+
+    await messaging().subscribeToTopic(topic);
+
+    console.log('[FCM] SUSCRITO OK partido:', topic);
+
+    await AsyncStorage.setItem(KS.FOLLOW_MATCH(id), '1');
+    await addFollowedMatch(id);
+    await logA('follow_match', { match_id: id, topic });
+
+    return true;
+  } catch (e) {
+    console.log('[FCM] ERROR suscribiendo partido:', e?.message || e);
+    return false;
+  }
 }
 
 export async function unfollowMatch(matchId) {
   const id = String(matchId || '').trim();
   if (!id) return false;
 
-  await messaging().unsubscribeFromTopic(`match_${id}`);
-  await AsyncStorage.removeItem(KS.FOLLOW_MATCH(id));
+  try {
+    const topic = `match_${id}`;
+    console.log('[FCM] intentando desuscribir partido:', topic);
 
-  await logA('unfollow_match', { match_id: id }); // ✅ NUEVO
-  return true;
+    await messaging().unsubscribeFromTopic(topic);
+
+    console.log('[FCM] DESUSCRITO OK partido:', topic);
+
+    await AsyncStorage.removeItem(KS.FOLLOW_MATCH(id));
+    await removeFollowedMatch(id);
+    await logA('unfollow_match', { match_id: id, topic });
+
+    return true;
+  } catch (e) {
+    console.log('[FCM] ERROR desuscribiendo partido:', e?.message || e);
+    return false;
+  }
 }
-
 
 export async function isFollowingMatch(matchId) {
   const id = String(matchId || '').trim();
   if (!id) return false;
+
   const v = await AsyncStorage.getItem(KS.FOLLOW_MATCH(id));
   return v === '1';
 }
 
+// EQUIPO
 export async function followTeam(teamId) {
   const id = String(teamId || '').trim();
   if (!id) return false;
 
-  await messaging().subscribeToTopic(`team_${id}`);
-  await AsyncStorage.setItem(KS.FOLLOW_TEAM(id), '1');
+  try {
+    await prepareMessaging();
 
-  await logA('follow_team', { team_id: id }); // ✅ NUEVO
-  return true;
+    const topic = `team_${id}`;
+    console.log('[FCM] intentando suscribir equipo:', topic);
+
+    await messaging().subscribeToTopic(topic);
+
+    console.log('[FCM] SUSCRITO OK equipo:', topic);
+
+    await AsyncStorage.setItem(KS.FOLLOW_TEAM(id), '1');
+    await addFollowedTeam(id);
+    await logA('follow_team', { team_id: id, topic });
+
+    return true;
+  } catch (e) {
+    console.log('[FCM] ERROR suscribiendo equipo:', e?.message || e);
+    return false;
+  }
 }
 
 export async function unfollowTeam(teamId) {
   const id = String(teamId || '').trim();
   if (!id) return false;
 
-  await messaging().unsubscribeFromTopic(`team_${id}`);
-  await AsyncStorage.removeItem(KS.FOLLOW_TEAM(id));
+  try {
+    const topic = `team_${id}`;
+    console.log('[FCM] intentando desuscribir equipo:', topic);
 
-  await logA('unfollow_team', { team_id: id }); // ✅ NUEVO
-  return true;
+    await messaging().unsubscribeFromTopic(topic);
+
+    console.log('[FCM] DESUSCRITO OK equipo:', topic);
+
+    await AsyncStorage.removeItem(KS.FOLLOW_TEAM(id));
+    await removeFollowedTeam(id);
+    await logA('unfollow_team', { team_id: id, topic });
+
+    return true;
+  } catch (e) {
+    console.log('[FCM] ERROR desuscribiendo equipo:', e?.message || e);
+    return false;
+  }
 }
-
 
 export async function isFollowingTeam(teamId) {
   const id = String(teamId || '').trim();
   if (!id) return false;
+
   const v = await AsyncStorage.getItem(KS.FOLLOW_TEAM(id));
   return v === '1';
 }
 
-// =============================================
-// Suscripción al TOPIC GLOBAL "futbolchapin"
-// =============================================
-
-const GLOBAL_TOPIC_KEY = 'fc_global_topic_futbolchapin_v1';
-
+// GLOBAL
 export async function subscribeGlobalTopic() {
   try {
-    await messaging().subscribeToTopic('futbolchapin');
-    await AsyncStorage.setItem(GLOBAL_TOPIC_KEY, '1');
+    await prepareMessaging();
 
-    await logA('global_topic_subscribe', { topic: 'futbolchapin' }); // ✅ NUEVO
-    console.log('[NOTIF] Suscrito a topic global futbolchapin');
+    console.log('[FCM] intentando suscribir global:', GLOBAL_TOPIC);
+
+    await messaging().subscribeToTopic(GLOBAL_TOPIC);
+
+    console.log('[FCM] SUSCRITO OK global:', GLOBAL_TOPIC);
+
+    await AsyncStorage.setItem(KS.GLOBAL_TOPIC, '1');
+    await logA('global_topic_subscribe', { topic: GLOBAL_TOPIC });
+
     return true;
   } catch (e) {
-    console.log('[NOTIF] ERROR al suscribir topic global:', e);
+    console.log('[FCM] ERROR suscribiendo global:', e?.message || e);
     return false;
   }
 }
 
 export async function unsubscribeGlobalTopic() {
   try {
-    await messaging().unsubscribeFromTopic('futbolchapin');
-    await AsyncStorage.removeItem(GLOBAL_TOPIC_KEY);
+    console.log('[FCM] intentando desuscribir global:', GLOBAL_TOPIC);
 
-    await logA('global_topic_unsubscribe', { topic: 'futbolchapin' }); // ✅ NUEVO
-    console.log('[NOTIF] Eliminada suscripción global futbolchapin');
+    await messaging().unsubscribeFromTopic(GLOBAL_TOPIC);
+
+    console.log('[FCM] DESUSCRITO OK global:', GLOBAL_TOPIC);
+
+    await AsyncStorage.removeItem(KS.GLOBAL_TOPIC);
+    await logA('global_topic_unsubscribe', { topic: GLOBAL_TOPIC });
+
     return true;
   } catch (e) {
-    console.log('[NOTIF] ERROR al eliminar topic global:', e);
+    console.log('[FCM] ERROR desuscribiendo global:', e?.message || e);
     return false;
   }
 }
 
-
 export async function isSubscribedGlobalTopic() {
-  const v = await AsyncStorage.getItem(GLOBAL_TOPIC_KEY);
+  const v = await AsyncStorage.getItem(KS.GLOBAL_TOPIC);
   return v === '1';
 }
 
-// Para ejecutar solo UNA VEZ cuando la app arranca
 export async function ensureGlobalTopicOnce() {
-  const v = await AsyncStorage.getItem(GLOBAL_TOPIC_KEY);
-  if (v === '1') return;
-  await subscribeGlobalTopic();
+  const v = await AsyncStorage.getItem(KS.GLOBAL_TOPIC);
+
+  if (v === '1') {
+    console.log('[FCM] global ya marcado en storage:', GLOBAL_TOPIC);
+    return true;
+  }
+
+  return subscribeGlobalTopic();
 }
 
-
-// =====================
-// Navegación (routing)
-// =====================
+// NAVEGACIÓN
 function safeNavigate(screen, params) {
   try {
     navRef?.current?.navigate(screen, params);
     return true;
   } catch (e) {
+    console.log('[NOTIF] navigation error:', e?.message || e);
     return false;
   }
 }
 
-// ← NUEVO: reset al stack [Home, destino] cuando arrancas desde push
-function resetToHomeThen(screen, params) {
-  try {
-    navRef?.current?.dispatch(
-      CommonActions.reset({
-        index: 1,
-        routes: [
-          { name: 'Home' },
-          { name: screen, params },
-        ],
-      })
-    );
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-
-// Lee payload.data y navega
-// Lee payload.data y navega
 function handleRoute(data = {}) {
-  // 👀 Log para ver qué llega realmente del push
-  console.log('[NOTIF][handleRoute:data]', data);
-
-  // Fallback: si viene matchId pero NO viene screen, asumimos que es un partido
   if (!data.screen && data.matchId) {
     data.screen = 'Match';
   }
 
-  // Esperamos data como:
-  // {
-  //   screen: 'Match' | 'Team' | ...
-  //   matchId: '784700',
-  //   channel: 'guatemala',    // estándar
-  //   scope: 'guatemala',      // legacy (se mapea a channel)
-  //   tab: 'alineaciones'      // o initialTab
-  // }
+  if (!data.screen && data.teamId) {
+    data.screen = 'Team';
+  }
 
-  const screenRaw = data.screen || '';
-  const screen = screenRaw.toString();
+  const screen = String(data.screen || '');
   const matchId = data.matchId ? String(data.matchId) : '';
-  const channel = (data.channel || data.scope || 'guatemala').toString();
+  const teamId = data.teamId ? String(data.teamId) : '';
+  const channel = String(data.channel || data.scope || 'guatemala');
   const initialTab = mapInitialTab(data.initialTab || data.tab || '');
 
   if (norm(screen) === 'match' && matchId) {
-    const routeKey = `match_${matchId}_${Date.now()}`;
-    const params = {
+    return safeNavigate('Match', {
       matchId,
-      channel,       // <-- usa 'channel' (de scope si vino legacy)
+      channel,
       initialTab,
-      routeKey,      // útil para forzar rerender si vienes de otra pantalla
-      fromPush: true, 
-    };
-
-    // Si empezaste por push → stack = [Home, Match]
-    if (getStartedFromPush()) {
-      return resetToHomeThen('Match', params);
-    }
-    return safeNavigate('Match', params);
+      routeKey: `match_${matchId}_${Date.now()}`,
+      fromPush: true,
+    });
   }
 
-  if (norm(screen) === 'team' && data.teamId) {
-    const teamId = String(data.teamId);
-    const routeKey = `team_${teamId}_${Date.now()}`;
-
-    // Si la noti trae ymd/hhmm/gmt, armamos 'pre' para que el header muestre fecha/hora al instante
-    let pre = null;
-    const ymd  = (data.ymd || '').toString().replace(/-/g, '');
-    const hhmm = (data.hhmm || '').toString().slice(0,5);
-    const gmt  = (data.gmt != null) ? Number(data.gmt) : null;
-    if (ymd && hhmm) {
-      pre = {
-        id: matchId,
-        date: ymd,                        // YYYYMMDD
-        scheduledStart: `${hhmm}:00`,     // HH:MM:SS
-        gmt,
-        teams: { homeTeamId:'', awayTeamId:'', homeTeamName:'', awayTeamName:'' }, // placeholders
-      };
-    }
-
-    const params = {
+  if ((norm(screen) === 'team' || norm(screen) === 'teamscreen') && teamId) {
+    return safeNavigate('TeamScreen', {
       teamId,
       channel,
-      routeKey,
-      ...(pre ? { pre } : {}),
-    };
-
-    if (getStartedFromPush()) {
-      return resetToHomeThen('TeamScreen', params);
-    }
-    return safeNavigate('TeamScreen', params);
+      routeKey: `team_${teamId}_${Date.now()}`,
+      fromPush: true,
+    });
   }
 
-  // Si no coincide nada, no navegamos.
+  if (norm(screen) === 'positions') {
+    return safeNavigate('Positions', { fromPush: true });
+  }
+
+  if (norm(screen) === 'calendar') {
+    return safeNavigate('Calendar', { fromPush: true });
+  }
+
+  if (norm(screen) === 'home') {
+    return safeNavigate('Home', { fromPush: true });
+  }
+
   return false;
 }
 
-
-// Intenta navegar si hay payload pendiente y navegación lista
 function doNavigateIfPossible() {
-  if (!navReady || !navRef || !navRef.current) return false;
-  if (!pendingRouteData) return false;
+  if (!navReady || !navRef?.current || !pendingRouteData) return false;
 
   const ok = handleRoute(pendingRouteData);
+
   if (ok) {
-  pendingRouteData = null;
-  hasTriedInitialNav = true;
-  setStartedFromPush(false);
-  return true;
-}
+    pendingRouteData = null;
+    hasTriedInitialNav = true;
+    setStartedFromPush(false);
+    return true;
+  }
+
   return false;
 }
 
-// =====================
-// Instalación del router
-// =====================
-// Opcional: puedes pasar { onForegroundMessage } para mostrar banner in-app, etc.
+function scheduleNavigationRetries() {
+  doNavigateIfPossible();
+  setTimeout(doNavigateIfPossible, 0);
+  setTimeout(doNavigateIfPossible, 250);
+  setTimeout(doNavigateIfPossible, 800);
+  InteractionManager.runAfterInteractions(() => doNavigateIfPossible());
+}
+
+async function handleForegroundPush(remote) {
+  const data = remote?.data || {};
+
+  const event = {
+    type: data.type || data.eventType || 'news',
+    matchId: data.matchId || '',
+    homeTeamId: data.homeTeamId || '',
+    awayTeamId: data.awayTeamId || '',
+    teamId: data.teamId || '',
+    title: remote?.notification?.title || data.title || '',
+    body: remote?.notification?.body || data.body || '',
+    screen: data.screen || '',
+    channel: data.channel || data.scope || 'guatemala',
+    initialTab: data.initialTab || data.tab || '',
+    ...data,
+  };
+
+  const result = {
+  title: event.title,
+  body: event.body,
+  type: event.type,
+  priority: 'high',
+  shouldVibrate: true,
+  ...event,
+};
+
+  if (!result) {
+    return;
+  }
+
+  if (result.shouldVibrate) {
+    Vibration.vibrate([0, 200, 100, 200]);
+  }
+
+  if (_showInAppBanner) {
+    _showInAppBanner(result);
+  }
+}
+
 export function installNotificationRouter(navigationRef, opts = {}) {
   navRef = navigationRef;
 
-  // 1) App en foreground (mensaje recibido mientras estás usando la app)
   messaging().onMessage(async (remote) => {
-    console.log('[NOTIF][fg]', remote?.notification, remote?.data); // 👈 log
+    console.log('[NOTIF][fg]', remote?.notification, remote?.data);
+
     if (typeof opts.onForegroundMessage === 'function') {
       opts.onForegroundMessage(remote);
     }
-    // No navegamos automáticamente en foreground.
+
+    await handleForegroundPush(remote);
   });
 
-  // 2) App en background: usuario toca la notificación
   messaging().onNotificationOpenedApp((remote) => {
-    console.log('[NOTIF][openBG]', remote?.notification, remote?.data); // 👈 log
-    // ✅ NUEVO: analytics push open (background)
+    console.log('[NOTIF][openBG]', remote?.data);
+
     logA('push_open', {
       state: 'background',
       screen: String(remote?.data?.screen || ''),
       match_id: String(remote?.data?.matchId || ''),
       team_id: String(remote?.data?.teamId || ''),
-      topic: String(remote?.data?.topic || ''), // si algún día lo mandas
+      type: String(remote?.data?.type || ''),
     });
 
     pendingRouteData = remote?.data || null;
     hasTriedInitialNav = false;
     setStartedFromPush(!!pendingRouteData);
-    // ✅ Bloquea interstitial al entrar desde push + da gracia al App Open
-    setPushGrace(15_000);
-    setOpenAdGrace(15_000);
 
-    // Intentos escalonados para cubrir la animación de montaje
-    doNavigateIfPossible();
-    setTimeout(doNavigateIfPossible, 0);
-    setTimeout(doNavigateIfPossible, 250);
-    setTimeout(doNavigateIfPossible, 800);
-    InteractionManager.runAfterInteractions(() => doNavigateIfPossible());
+    scheduleNavigationRetries();
   });
 
-  // 3) App en cold start (quit): entró por la notificación
   messaging().getInitialNotification().then((remote) => {
-    console.log('[NOTIF][initial]', remote?.notification, remote?.data); // 👈 log
-    // ✅ NUEVO: analytics push open (cold start)
+    if (!remote) return;
+
+    console.log('[NOTIF][initial]', remote?.data);
+
     logA('push_open', {
       state: 'cold_start',
       screen: String(remote?.data?.screen || ''),
       match_id: String(remote?.data?.matchId || ''),
       team_id: String(remote?.data?.teamId || ''),
-      topic: String(remote?.data?.topic || ''),
+      type: String(remote?.data?.type || ''),
     });
 
     pendingRouteData = remote?.data || null;
     hasTriedInitialNav = false;
     setStartedFromPush(!!pendingRouteData);
-    // ✅ Bloquea interstitial al entrar desde push + da gracia al App Open
-    setPushGrace(15_000);
-    setOpenAdGrace(15_000);
-
-    // onNavigationReady() se encargará de completar la navegación.
   });
 }
 
-
-// Llama esto en NavigationContainer onReady
 export function onNavigationReady(navigationRef) {
   navRef = navigationRef;
   navReady = true;
 
   if (!hasTriedInitialNav) {
-    doNavigateIfPossible();
-    setTimeout(doNavigateIfPossible, 0);
-    setTimeout(doNavigateIfPossible, 250);
-    setTimeout(doNavigateIfPossible, 800);
-    InteractionManager.runAfterInteractions(() => doNavigateIfPossible());
+    scheduleNavigationRetries();
   }
 }
 
-// =====================
-// Utilidad para pruebas
-// =====================
-// Simula que recibiste un push data y fuerza navegación
 export function __dev_forceRoute(data) {
   pendingRouteData = data || null;
   setStartedFromPush(!!pendingRouteData);
-  doNavigateIfPossible();
+  scheduleNavigationRetries();
+}
+
+export async function __dev_simulatePush(eventData) {
+  const fakeRemote = {
+    notification: {
+      title: eventData.title || 'Test notification',
+      body: eventData.body || 'Test body',
+    },
+    data: eventData,
+  };
+
+  await handleForegroundPush(fakeRemote);
 }

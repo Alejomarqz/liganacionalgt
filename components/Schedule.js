@@ -26,7 +26,7 @@ const {width, height} = Dimensions.get('window');
 // 👇 Interstitial (usa test en debug y tu ID real en release)
 const INTERSTITIAL_UNIT_ID = __DEV__
   ? TestIds.INTERSTITIAL
-  : 'ca-app-pub-3710973902746391/2280373125';
+  : 'ca-app-pub-5408077761010566/9845627398';
 
 // clave en storage para controlar frecuencia
 const LAST_INTERSTITIAL_KEY = 'last_interstitial_ts';

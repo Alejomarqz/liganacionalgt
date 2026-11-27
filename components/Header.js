@@ -1,244 +1,279 @@
 // components/Header.js
 import React from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
-  Platform,
-  SafeAreaView,
+  View, Text, TouchableOpacity, Image,
+  StyleSheet, Platform, Animated,
 } from 'react-native';
-import { CommonActions } from '@react-navigation/native';
-import BellToggle from './BellToggle';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CommonActions }     from '@react-navigation/native';
+import { MagnifyingGlass, Gear, CaretLeft } from 'phosphor-react-native';
+import BellToggle   from './BellToggle';
 import { useTheme } from '../utils/ThemeContext';
-import { BRAND } from '../utils/theme';
+import { BRAND }    from '../utils/theme';
 
+/* ── Color de iconos según tema ── */
+function ic(colors) { return colors.iconColor; }
+
+/* ══════════════════════════════════════════════════════════
+   HEADER
+   Props:
+   - showLogo      → modo Home (logo + nombre a la izquierda)
+   - title         → modo pantalla interna (título centrado)
+   - liveCount     → número de partidos en vivo (badge rojo)
+   - showSearch / showSettings / showBell
+══════════════════════════════════════════════════════════ */
 export default function Header({
   navigation,
-  title = '',
-  showSearch = false,
-  showBell = false,
-  bellProps = {},
+  title          = '',
+  showSearch     = false,
+  showBell       = false,
+  bellProps      = {},
   onSearchPress,
-  showSettings = false,
+  showSettings   = false,
   onSettingsPress,
-  disableBack = false,
+  disableBack    = false,
 
-  // Modo logo (para Home) vs modo título (para pantallas internas)
-  showLogo = false,
-
-  // Texto dinámico en Home
-  logoName = 'Liga Nacional GT',
-  logoSub = '🇬🇹 Guatemala',
-  seasonLabel = 'Temporada 2025',
-
-  // ✅ Logo real
+  /* Modo Home */
+  showLogo   = false,
+  logoName   = 'Liga Nacional',
   logoSource = require('../resources/logos/app-logo.png'),
-
-  // Ajustes
-  height = 58,
-  logoSize = 34, // ✅ tamaño del logo (solo imagen)
+  logoSize   = 32,
+  liveCount  = 0,   // badge "EN VIVO · N"
 }) {
   const { theme } = useTheme();
-  const colors = theme.colors;
+  const colors    = theme.colors;
+  const isDark    = theme.mode === 'dark';
+  const insets    = useSafeAreaInsets();
+  const topPad    = Platform.OS === 'android' ? (insets.top || 0) : 0;
 
-  const canGoBackNav = navigation?.canGoBack?.();
-  const showBack = !disableBack && canGoBackNav;
+  const canGoBack = navigation?.canGoBack?.();
+  const showBack  = !disableBack && canGoBack;
 
   const handleBack = () => {
-    if (showBack) {
-      navigation.goBack();
-      return;
-    }
-    navigation.dispatch(
-      CommonActions.reset({ index: 0, routes: [{ name: 'Home' }] })
-    );
+    if (showBack) { navigation.goBack(); return; }
+    navigation?.dispatch?.(CommonActions.reset({ index: 0, routes: [{ name: 'Home' }] }));
   };
 
-  return (
-    <SafeAreaView style={{ backgroundColor: colors.headerBg }}>
-      <View
-        style={[
-          S.wrap,
-          {
-            height,
-            backgroundColor: colors.headerBg,
-            borderBottomColor: colors.tabBarBorder,
-          },
-        ]}
-      >
-        {/* ── IZQUIERDA ── */}
-        <View style={S.left}>
-          {showBack ? (
-            <TouchableOpacity
-              hitSlop={{ top: 10, left: 10, right: 10, bottom: 10 }}
-              onPress={handleBack}
-              style={[S.iconBtn, { backgroundColor: colors.iconBg }]}
-            >
-              <Image
-                source={require('../resources/back.png')}
-                style={[S.icon18, { tintColor: colors.iconColor }]}
-              />
-            </TouchableOpacity>
-          ) : showLogo ? (
-            // ✅ SOLO LOGO (sin caja/fondo)
+  /* ── Modo HOME ─────────────────────────────────────────── */
+  if (showLogo) {
+    return (
+      <View style={[S.outer, { backgroundColor: colors.headerBg, borderBottomColor: colors.tabBarBorder, paddingTop: topPad }]}>
+        <View style={S.homeInner}>
+
+          {/* Izquierda: logo + nombre */}
+          <View style={S.homeBrand}>
             <Image
               source={logoSource}
-              style={[
-                S.appLogo,
-                {
-                  width: logoSize,
-                  height: logoSize,
-                },
-              ]}
+              style={{ width: logoSize, height: logoSize }}
               resizeMode="contain"
             />
-          ) : (
-            <View style={S.leftPlaceholder} />
-          )}
-        </View>
-
-        {/* ── CENTRO ── */}
-        <View style={S.center}>
-          {showLogo ? (
-            <View style={S.logoTextWrap}>
-              <Text
-                numberOfLines={1}
-                style={[S.logoName, { color: colors.text }]}
-              >
+            <View style={S.brandText}>
+              <Text style={[S.brandName, { color: colors.text }]} numberOfLines={1}>
                 {logoName}
               </Text>
-
-              <Text numberOfLines={1} style={[S.logoSub, { color: BRAND.gold }]}>
-                {logoSub}
-                {!!seasonLabel ? ` · ${seasonLabel}` : ''}
-              </Text>
+              {/* Badge EN VIVO — solo cuando hay partidos en vivo */}
+              {liveCount > 0 && (
+                <View style={S.liveBadge}>
+                  <View style={S.liveDot} />
+                  <Text style={S.liveText}>
+                    EN VIVO{liveCount > 1 ? ` · ${liveCount}` : ''}
+                  </Text>
+                </View>
+              )}
             </View>
-          ) : (
-            !!title && (
-              <Text
-                numberOfLines={1}
-                style={[S.title, { color: colors.headerText }]}
+          </View>
+
+          {/* Derecha: acciones */}
+          <View style={S.actions}>
+            {showBell && <BellToggle {...bellProps} />}
+
+            {showSearch && (
+              <TouchableOpacity
+                onPress={() => onSearchPress?.()}
+                activeOpacity={0.65}
+                hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+                style={S.iconBtn}
               >
-                {title}
-              </Text>
-            )
-          )}
-        </View>
+                <MagnifyingGlass size={22} color={ic(colors)} weight="regular" />
+              </TouchableOpacity>
+            )}
 
-        {/* ── DERECHA ── */}
-        <View style={S.right}>
-          {showBell && (
-            <View style={S.action}>
-              <BellToggle {...bellProps} />
-            </View>
-          )}
+            {showSettings && (
+              <TouchableOpacity
+                onPress={() => onSettingsPress?.()}
+                activeOpacity={0.65}
+                hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+                style={S.iconBtn}
+              >
+                <Gear size={22} color={ic(colors)} weight="regular" />
+              </TouchableOpacity>
+            )}
+          </View>
 
-          {showSearch && (
-            <TouchableOpacity
-              style={[S.iconBtn, { backgroundColor: colors.iconBg }, S.action]}
-              onPress={() => onSearchPress?.()}
-              hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
-            >
-              <Image
-                source={require('../resources/search.png')}
-                style={[S.icon20, { tintColor: colors.iconColor }]}
-              />
-            </TouchableOpacity>
-          )}
-
-          {showSettings && (
-            <TouchableOpacity
-              style={[S.iconBtn, { backgroundColor: colors.iconBg }, S.action]}
-              onPress={() => onSettingsPress?.()}
-              hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
-            >
-              <Image
-                source={require('../resources/settings.png')}
-                style={[S.icon20, { tintColor: colors.iconColor }]}
-              />
-            </TouchableOpacity>
-          )}
         </View>
       </View>
-    </SafeAreaView>
+    );
+  }
+
+  /* ── Modo PANTALLA INTERNA ─────────────────────────────── */
+  const rightCount = (showBell ? 1 : 0) + (showSearch ? 1 : 0) + (showSettings ? 1 : 0);
+  const sideW      = Math.max(44, rightCount * 40 + 8);
+
+  return (
+    <View style={[S.outer, { backgroundColor: colors.headerBg, borderBottomColor: colors.tabBarBorder, paddingTop: topPad }]}>
+      <View style={[S.inner, { height: 54 }]}>
+
+        {/* Izquierda */}
+        <View style={[S.side, { width: sideW, alignItems: 'flex-start' }]}>
+          {showBack ? (
+            <TouchableOpacity
+              hitSlop={{ top: 12, left: 12, right: 12, bottom: 12 }}
+              onPress={handleBack}
+              activeOpacity={0.65}
+              style={S.iconBtn}
+            >
+              <CaretLeft size={22} color={ic(colors)} weight="regular" />
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 36 }} />
+          )}
+        </View>
+
+        {/* Centro */}
+        <View style={S.center}>
+          {!!title && (
+            <Text numberOfLines={1} style={[S.title, { color: colors.headerText }]}>
+              {title}
+            </Text>
+          )}
+        </View>
+
+        {/* Derecha */}
+        <View style={[S.side, { width: sideW, alignItems: 'flex-end' }]}>
+          <View style={S.actions}>
+            {showBell && <BellToggle {...bellProps} />}
+
+            {showSearch && (
+              <TouchableOpacity
+                style={S.iconBtn}
+                onPress={() => onSearchPress?.()}
+                activeOpacity={0.65}
+                hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+              >
+                <MagnifyingGlass size={22} color={ic(colors)} weight="regular" />
+              </TouchableOpacity>
+            )}
+
+            {showSettings && (
+              <TouchableOpacity
+                style={S.iconBtn}
+                onPress={() => onSettingsPress?.()}
+                activeOpacity={0.65}
+                hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}
+              >
+                <Gear size={22} color={ic(colors)} weight="regular" />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+      </View>
+    </View>
   );
 }
 
+/* ─── Styles ─────────────────────────────────────────────── */
 const S = StyleSheet.create({
-  wrap: {
+  outer: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    zIndex: 10,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+
+  /* ── Home mode ── */
+  homeInner: {
+    height: 58,
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    paddingHorizontal: 12,
-    paddingTop: Platform.OS === 'android' ? 2 : 0,
-    paddingBottom: Platform.OS === 'android' ? 2 : 0,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  homeBrand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  brandText: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  brandName: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 17,
+    lineHeight: 21,
+    letterSpacing: -0.3,
   },
 
-  // ── Izquierda ──
-  left: {
-    width: 52,
-    alignItems: 'flex-start',
+  /* Badge EN VIVO */
+  liveBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(232,48,74,0.10)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 50,
+    alignSelf: 'flex-start',
+  },
+  liveDot: {
+    width: 5, height: 5,
+    borderRadius: 3,
+    backgroundColor: BRAND.red,
+  },
+  liveText: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 9,
+    color: BRAND.red,
+    letterSpacing: 0.4,
+  },
+
+  /* Acciones */
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  iconBtn: {
+    width: 38, height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  leftPlaceholder: { width: 36, height: 36 },
 
-  // ✅ Logo sin fondo
-  appLogo: {
-    // Un pelín de alineación visual
-    marginLeft: 1,
+  /* ── Pantalla interna ── */
+  inner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
   },
-
-  // ── Centro ──
+  side: {
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
   center: {
     flex: 1,
-    alignItems: 'flex-start',
-    paddingHorizontal: 6,
-    paddingRight: 10,
+    alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
     minWidth: 0,
   },
-
-  // ── Derecha ──
-  right: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    minWidth: 88,
-  },
-  action: { marginLeft: 8 },
-
-  // ── Icon button ──
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  icon18: { width: 18, height: 18, resizeMode: 'contain' },
-  icon20: { width: 20, height: 20, resizeMode: 'contain' },
-
-  // ── Logo texto ──
-  logoTextWrap: { justifyContent: 'center', minWidth: 0 },
-  logoName: {
-    fontFamily: 'Poppins-Bold',
-    fontSize: 16,
-    lineHeight: 20,
-    letterSpacing: -0.2,
-  },
-  logoSub: {
-    fontFamily: 'Poppins-Medium',
-    fontSize: 10,
-    lineHeight: 14,
-    letterSpacing: 0.2,
-  },
-
-  // ── Título pantallas internas ──
   title: {
     fontFamily: 'Poppins-SemiBold',
     fontSize: 17,
     letterSpacing: -0.3,
+    textAlign: 'center',
   },
 });

@@ -4,7 +4,7 @@
 module.exports = {
   project: {
     android: {
-      packageName: 'com.chapinpro',
+      packageName: 'com.liganacionalgt',
     },
   },
 

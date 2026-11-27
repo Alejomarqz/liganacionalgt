@@ -9,7 +9,6 @@ try {
   NativeAds = require('react-native-google-mobile-ads/native-ads');
 } catch (e1) {
   try {
-    // fallback por si en tu versión el path cambia
     NativeAds = require('react-native-google-mobile-ads/native');
   } catch (e2) {
     NativeAds = {};
@@ -25,7 +24,6 @@ const {
 } = NativeAds;
 
 export default function InlineNativeAd() {
-  // Si el submódulo no cargó, no intentes renderizarlo
   if (!NativeAdView || !HeadlineView) {
     console.warn('[Ads] NativeAds module not available yet.');
     return null;
@@ -34,12 +32,12 @@ export default function InlineNativeAd() {
   const adUnitId = __DEV__
     ? TestIds.NATIVE_ADVANCED
     : (Platform.OS === 'android'
-        ? 'ca-app-pub-3710973902746391/9122643056'
-        : 'ca-app-pub-3710973902746391/7555228750');
+        ? 'ca-app-pub-5408077761010566/9133496749'   // Android — native_inline
+        : 'ca-app-pub-5408077761010566/6231045311'); // iOS — native_inline
 
-  const adRef = useRef(null);
+  const adRef  = useRef(null);
   const [mounted, setMounted] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded,  setLoaded]  = useState(false);
 
   useEffect(() => {
     const t = setTimeout(() => setMounted(true), 0);
@@ -59,7 +57,7 @@ export default function InlineNativeAd() {
         ref={adRef}
         adUnitID={adUnitId}
         onAdLoaded={() => setLoaded(true)}
-        onAdFailedToLoad={(e) => {
+        onAdFailedToLoad={e => {
           setLoaded(false);
           console.log('Native ad failed:', e?.message);
         }}
@@ -91,11 +89,11 @@ const S = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  image: { width: 70, height: 70, borderRadius: 8 },
-  textBox: { flex: 1, marginLeft: 10 },
-  title: { fontWeight: 'bold', fontSize: 15, color: '#111' },
-  tag: { color: '#555', fontSize: 13, marginVertical: 4 },
-  button: { borderRadius: 6, paddingVertical: 6, paddingHorizontal: 10, alignSelf: 'flex-start' },
-  buttonText: { fontSize: 13, fontWeight: '600' },
+  row:        { flexDirection: 'row', alignItems: 'center' },
+  image:      { width: 70, height: 70, borderRadius: 8 },
+  textBox:    { flex: 1, marginLeft: 10 },
+  title:      { fontFamily: 'Poppins-SemiBold', fontSize: 15, color: '#111' },
+  tag:        { fontFamily: 'Poppins-Regular',  fontSize: 13, color: '#555', marginVertical: 4 },
+  button:     { borderRadius: 6, paddingVertical: 6, paddingHorizontal: 10, alignSelf: 'flex-start' },
+  buttonText: { fontFamily: 'Poppins-SemiBold', fontSize: 13 },
 });

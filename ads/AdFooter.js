@@ -8,12 +8,11 @@ export default function AdFooter() {
   const { theme } = useTheme();
   const colors = theme.colors;
 
-  // ⬇️ Mantén tu lógica exacta de IDs
   const unitId = __DEV__
     ? TestIds.BANNER
     : (Platform.OS === 'ios' || Platform.OS === 'macos'
-        ? 'ca-app-pub-3710973902746391/7504779644'  // iOS real
-        : 'ca-app-pub-3710973902746391/8895303811'); // Android real
+        ? 'ca-app-pub-5408077761010566/9891088729'  // iOS — banner_footer
+        : 'ca-app-pub-5408077761010566/3778912498'); // Android — banner_footer
 
   return (
     <SafeAreaView pointerEvents="box-none" style={S.wrap}>
@@ -21,8 +20,8 @@ export default function AdFooter() {
         style={[
           S.bannerBox,
           {
-            backgroundColor: colors.cardBg,      // antes #F7F8FA
-            borderTopColor: colors.cardBorder,  // antes #ebe6e6ff
+            backgroundColor: colors.cardBg,
+            borderTopColor:  colors.cardBorder,
           },
         ]}
       >

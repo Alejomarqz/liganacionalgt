@@ -4,14 +4,14 @@ buildscript {
     ext {
         buildToolsVersion = "35.0.0"
         minSdkVersion     = 24
-        compileSdkVersion = 35
+        compileSdkVersion = 36
         targetSdkVersion  = 35
 
         // ✅ NDK r28 (16 KiB page-size ready)
         ndkVersion  = "28.0.12433566"
 
         // ✅ Kotlin recomendado para RN 0.79
-        kotlinVersion = "1.9.25"
+        kotlinVersion = "2.0.21"
     }
 
     repositories {
@@ -20,7 +20,7 @@ buildscript {
     }
 
     dependencies {
-        classpath("com.android.tools.build:gradle:8.6.1")
+        classpath("com.android.tools.build:gradle:8.9.1")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
         classpath("com.google.gms:google-services:4.4.3")

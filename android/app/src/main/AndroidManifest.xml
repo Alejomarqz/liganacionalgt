@@ -18,10 +18,10 @@
       android:theme="@style/AppTheme"
       android:supportsRtl="true">
 
-      <!-- Resolución del conflicto de AD_SERVICES_CONFIG -->
+      <!-- ✅ AdMob App ID (Liga Nacional GT) -->
       <meta-data
           android:name="com.google.android.gms.ads.APPLICATION_ID"
-          android:value="ca-app-pub-3710973902746391~5885286658"
+          android:value="ca-app-pub-5408077761010566~2964971386"
           tools:replace="android:value" />
 
       <!-- Resolución de duplicados AD_SERVICES_CONFIG -->
@@ -44,10 +44,10 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
-      
+
       <!-- Actividad de configuración para React Native -->
       <activity android:name="com.facebook.react.devsupport.DevSettingsActivity" />
-      
+
     </application>
 
 </manifest>

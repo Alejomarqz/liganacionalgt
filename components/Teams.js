@@ -1,143 +1,153 @@
+// components/Teams.js
 import React, { Component } from 'react';
 import {
-  Image,
-  Platform,
-  StyleSheet,
-  Text,
-  View,
-  Dimensions,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
+  Platform, StyleSheet, Text, View,
+  FlatList, TouchableOpacity, RefreshControl, Animated,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import Header from './Header';
-import AdFooter from '../ads/AdFooter';
-import TeamSearchModal from './TeamSearchModal'; // 👈 modal de búsqueda
-import { changeName } from '../utils/changeName';
+import { SafeAreaView }  from 'react-native-safe-area-context';
+import { withTheme }     from '../utils/ThemeContext';
+import Header            from './Header';
+import AdFooter          from '../ads/AdFooter';
+import FooterTabs        from './FooterTabs';
+import TeamSearchModal   from './TeamSearchModal';
+import LogoImg           from './LogoImg';
+import { changeName }    from '../utils/changeName';
 import { API_CUSTOM_DIGITAL } from '@env';
-import { logos } from '../utils/logos';
-import { withTheme } from '../utils/ThemeContext';
 
-const { width } = Dimensions.get('window');
-
-// Altura del banner (ajústalo si usas otro formato)
-const BANNER_H = 60; // 320x50
-// Elevación del AdFooter por encima de la barra/gestos (igual que en Match/Scorers)
+/* ─── Layout ─────────────────────────────────────────────── */
+const BANNER_H   = 60;
+const TAB_H      = 58;
 const FOOTER_LIFT = Platform.OS === 'android' ? 48 : 10;
+// Espacio total abajo: banner + tabs + safe area buffer
+const PAD_BOTTOM = BANNER_H + TAB_H + FOOTER_LIFT + 16;
 
-const NAVY = '#0b1f3b';
+/* ─── TeamRow animada ────────────────────────────────────── */
+class TeamRow extends Component {
+  anim = new Animated.Value(0);
 
+  componentDidMount() {
+    Animated.timing(this.anim, {
+      toValue: 1,
+      duration: 280,
+      delay: Math.min(this.props.index * 40, 400),
+      useNativeDriver: true,
+    }).start();
+  }
+
+  render() {
+    const { item, colors, onPress } = this.props;
+    const teamName = changeName(item?.nombre?.[0] || item?.name || '');
+    const teamId   = String(item?.id || item?.teamId || '');
+
+    const opacity    = this.anim;
+    const translateY = this.anim.interpolate({ inputRange: [0, 1], outputRange: [12, 0] });
+
+    return (
+      <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+        <TouchableOpacity
+          activeOpacity={0.72}
+          onPress={onPress}
+          style={[styles.row, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}
+        >
+          {/* Logo */}
+          <LogoImg teamId={teamId} size={40} style={styles.logo} />
+
+          {/* Nombre */}
+          <View style={styles.nameWrap}>
+            <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
+              {teamName}
+            </Text>
+          </View>
+
+          {/* Chevron */}
+          <Text style={[styles.chev, { color: colors.textMuted }]}>›</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  }
+}
+
+/* ══════════════════════════════════════════════════════════
+   TEAMS
+══════════════════════════════════════════════════════════ */
 class Teams extends Component {
   constructor(props) {
     super(props);
     this.state = {
-      teams: [],
-      refreshing: true,
-      icons: logos,
-      showTeamSearch: false, // 👈 controla el modal de búsqueda
+      teams:          [],
+      refreshing:     true,
+      error:          false,
+      showTeamSearch: false,
     };
   }
 
-  // ============= Carga de equipos =============
+  componentDidMount() {
+    this.fetchTeams();
+  }
 
-  getTeams() {
-    this.setState({ refreshing: true });
-
+  fetchTeams = () => {
+    this.setState({ refreshing: true, error: false });
     fetch(`${API_CUSTOM_DIGITAL}/positions`)
-      .then(response => response.json())
+      .then(r => r.json())
       .then(result => {
-        let teams = [];
-        if (result?.posiciones?.equipo) {
-          for (let i = 0; i < result.posiciones.equipo.length; i++) {
-            teams.push(result.posiciones.equipo[i]);
-          }
-        }
-
-        // Orden alfabético por nombre
-        const len = teams.length;
-        for (let i = 0; i < len; i++) {
-          for (let j = 0; j < len - i - 1; j++) {
-            const t1 = teams[j];
-            const t2 = teams[j + 1];
-            const op1 = (t1?.nombre?.[0] || '') > (t2?.nombre?.[0] || '');
-            if (op1) {
-              const temp = teams[j];
-              teams[j] = teams[j + 1];
-              teams[j + 1] = temp;
-            }
-          }
-        }
-
+        let teams = result?.posiciones?.equipo ?? [];
+        // Orden alfabético con sort nativo (más eficiente que bubble sort)
+        teams = [...teams].sort((a, b) => {
+          const na = (a?.nombre?.[0] || a?.name || '').toLowerCase();
+          const nb = (b?.nombre?.[0] || b?.name || '').toLowerCase();
+          return na.localeCompare(nb, 'es');
+        });
         this.setState({ teams, refreshing: false });
       })
-      .catch(error => {
-        alert('Ha ocurrido un error en la conexión.');
-        this.setState({ refreshing: false });
+      .catch(() => {
+        this.setState({ refreshing: false, error: true });
       });
-  }
-
-  componentDidMount() {
-    this.getTeams();
-  }
-
-  refresh = () => {
-    this.getTeams();
   };
 
-  // ============= Render de cada equipo =============
-
-  renderTeam = ({ item }) => {
-    const logoSource = this.state.icons[item.id];
-    const teamName = changeName(item?.nombre?.[0] || '');
-
-    const { theme } = this.props;
+  renderItem = ({ item, index }) => {
+    const { navigation, theme } = this.props;
     const colors = theme?.colors ?? {};
-
     return (
-      <TouchableOpacity
-        activeOpacity={0.75}
-        onPress={() => {
-          this.props.navigation.navigate('TeamScreen', {
-            team: item,
-            scope: 'guatemala',
-          });
-        }}
-      >
-        <View
-          style={[
-            styles.row,
-            {
-              backgroundColor: colors.cardBg,
-              borderColor: colors.cardBorder,
-            },
-          ]}
-        >
-          {/* Logo del equipo */}
-          {logoSource && (
-            <Image
-              source={logoSource}
-              style={styles.teamLogo}
-              resizeMode="contain"
-            />
-          )}
-
-          {/* Nombre */}
-          <View style={{ flex: 1 }}>
-            <Text
-              style={[styles.name, { color: colors.text }]}
-              numberOfLines={1}
-            >
-              {teamName}
-            </Text>
-          </View>
-        </View>
-      </TouchableOpacity>
+      <TeamRow
+        item={item}
+        index={index}
+        colors={colors}
+        onPress={() => navigation.navigate('TeamScreen', {
+          team: item,
+          scope: 'guatemala',
+        })}
+      />
     );
   };
 
-  // ============= Render principal =============
+  renderEmpty = () => {
+    const { theme } = this.props;
+    const colors = theme?.colors ?? {};
+    if (this.state.refreshing) return null;
+    if (this.state.error) {
+      return (
+        <View style={styles.stateWrap}>
+          <Text style={styles.stateEmoji}>📡</Text>
+          <Text style={[styles.stateTitle, { color: colors.text }]}>Sin conexión</Text>
+          <Text style={[styles.stateSub, { color: colors.textMuted }]}>
+            No se pudieron cargar los equipos
+          </Text>
+          <TouchableOpacity
+            style={[styles.retryBtn, { backgroundColor: '#d32f2f' }]}
+            onPress={this.fetchTeams}
+          >
+            <Text style={styles.retryText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.stateWrap}>
+        <Text style={styles.stateEmoji}>🏟️</Text>
+        <Text style={[styles.stateTitle, { color: colors.text }]}>Sin equipos</Text>
+      </View>
+    );
+  };
 
   render() {
     const { teams, refreshing, showTeamSearch } = this.state;
@@ -149,7 +159,6 @@ class Teams extends Component {
         style={[styles.container, { backgroundColor: colors.screenBg }]}
         edges={['bottom']}
       >
-        {/* Header con título y lupa FUNCIONAL */}
         <Header
           navigation={navigation}
           title="Equipos"
@@ -159,110 +168,78 @@ class Teams extends Component {
 
         <FlatList
           data={teams}
-          keyExtractor={(item, index) => index.toString()}
-          renderItem={this.renderTeam}
+          keyExtractor={(item, i) => String(item?.id ?? i)}
+          renderItem={this.renderItem}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
-          style={styles.scroll}
-          contentContainerStyle={{
-            paddingHorizontal: 10,
-            paddingTop: 8,
-            paddingBottom: BANNER_H + 20,
-            backgroundColor: colors.screenBg,
-          }}
-          scrollIndicatorInsets={{ bottom: BANNER_H }}
+          ListEmptyComponent={this.renderEmpty}
+          contentContainerStyle={[
+            styles.listContent,
+            { backgroundColor: colors.screenBg, paddingBottom: PAD_BOTTOM },
+          ]}
+          scrollIndicatorInsets={{ bottom: BANNER_H + TAB_H }}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={this.refresh}
-              colors={['#e53935']}
-              tintColor="#e53935"
+              onRefresh={this.fetchTeams}
+              colors={['#d32f2f']}
+              tintColor="#d32f2f"
               progressBackgroundColor={colors.cardBg}
             />
           }
           showsVerticalScrollIndicator={false}
         />
 
-        {/* Modal de búsqueda de equipos */}
         <TeamSearchModal
           visible={showTeamSearch}
           onClose={() => this.setState({ showTeamSearch: false })}
-          onSelect={(team) => {
+          onSelect={team => {
             this.setState({ showTeamSearch: false });
             if (!team) return;
-            navigation.navigate('TeamScreen', {
-              teamId: team.id,
-              scope: team.scope,
-            });
+            navigation.navigate('TeamScreen', { teamId: team.id, scope: team.scope });
           }}
         />
 
-        {/* Ad fijo elevado sobre la zona de gestos */}
-        <View
-          pointerEvents="box-none"
-          style={[styles.footerFixed, { bottom: FOOTER_LIFT }]}
-        >
+        {/* Anuncio fijo */}
+        <View pointerEvents="box-none" style={[styles.footerFixed, { bottom: FOOTER_LIFT }]}>
           <AdFooter />
         </View>
+
+        {/* Footer tabs */}
+        <FooterTabs navigation={navigation} routeName="Teams" />
       </SafeAreaView>
     );
   }
 }
 
-// ============= Estilos =============
-
+/* ─── Styles ─────────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
-    paddingTop: Platform.OS === 'ios' ? 20 : 0,
-  },
+  container:   { flex: 1 },
+  listContent: { paddingHorizontal: 12, paddingTop: 10 },
+  sep:         { height: 8 },
 
-  scroll: {
-    flex: 1,
-    width,
-  },
-
-  // Tarjeta de equipo (mismo estilo que Goleadores)
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.06)',
-    padding: 10,
-    borderRadius: 10,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 12,
   },
+  logo:     { borderRadius: 8 },
+  nameWrap: { flex: 1 },
+  name:     { fontFamily: 'Poppins-SemiBold', fontSize: 14 },
+  chev:     { fontFamily: 'Poppins-Regular', fontSize: 22, lineHeight: 26 },
 
-  sep: {
-    height: 10,
-  },
+  /* Estados */
+  stateWrap:  { alignItems: 'center', paddingVertical: 48, gap: 8 },
+  stateEmoji: { fontSize: 32, marginBottom: 4 },
+  stateTitle: { fontFamily: 'Poppins-SemiBold', fontSize: 15 },
+  stateSub:   { fontFamily: 'Poppins-Regular',  fontSize: 13, textAlign: 'center' },
+  retryBtn:   { marginTop: 8, paddingHorizontal: 24, paddingVertical: 10, borderRadius: 50 },
+  retryText:  { fontFamily: 'Poppins-SemiBold', fontSize: 13, color: '#fff' },
 
-  teamLogo: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    marginRight: 10,
-  },
-
-  name: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: NAVY,
-  },
-
-  sub: {
-    fontSize: 12,
-    color: '#555',
-    marginTop: 2,
-  },
-
-  // Footer fijo elevado (mismo patrón que Scorers/Player)
-  footerFixed: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
+  footerFixed: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
 });
 
 export default withTheme(Teams);

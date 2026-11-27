@@ -1,9 +1,9 @@
-# OSX
-#
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
 
 # Xcode
-#
 build/
 *.pbxuser
 !default.pbxuser
@@ -13,100 +13,101 @@ build/
 !default.mode2v3
 *.perspectivev3
 !default.perspectivev3
-xcuserdata
+xcuserdata/
 *.xccheckout
 *.moved-aside
-DerivedData
+DerivedData/
 *.hmap
 *.ipa
 *.xcuserstate
+ios/.xcode.env
+ios/.xcode.env.local
 
 # CocoaPods
 /ios/Pods/
 
-# Android/IntelliJ
-#
-.idea
-.gradle
+# Android / IntelliJ
+.idea/
+.gradle/
 local.properties
 *.iml
+android/app/build/
+android/build/
+android/.gradle/
+android/app/libs/
+android/app/src/main/res/**/node_modules_*
 
-# node.js
-#
+# Node.js
 node_modules/
-npm-debug.log
-yarn-error.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.yarn/
 
 # BUCK
 buck-out/
-\.buckd/
-android/app/libs
-android/keystores/debug.keystore
-!debug.keystore
-#*.keystore
+.buckd/
 
-# fastlane
-#
-# It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
-# screenshots whenever they are needed.
-# For more information about the recommended setup visit:
-# https://docs.fastlane.tools/best-practices/source-control/
-
+# Fastlane
 */fastlane/report.xml
 */fastlane/Preview.html
-*/fastlane/screenshots
+*/fastlane/screenshots/
 
-# Bundle artifact
+# React Native
 *.jsbundle
+source_maps/
+.metro-health-check*
+.expo/
 
-# Thumbnails
+# Archivos de compilacion
+*.apk
+*.aab
+*.hprof
+release/
+dist/
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+
+# Certificados y claves privadas
+*.p12
+*.p8
+*.cer
+*.crt
+*.pem
+*.key
+*.mobileprovision
+*.keystore
+*.jks
+*.pfx
+
+# Archivos comprimidos
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# Archivos temporales
 ._*
+*.tmp
+*.temp
+*.log
+*.bak
 
-# Files that might appear in the root of a volume
+# Windows
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Archivos del sistema macOS
 .DocumentRevisions-V100
 .fseventsd
 .Spotlight-V100
 .TemporaryItems
 .Trashes
 .VolumeIcon.icns
-
-source_maps
-
-*.hprof
-
-release
-
-.env
-.yarn
-
-# Certificados / llaves (NO subir)
-*.p12
-*.p8
-*.cer
-*.crt
-*.pem
-*.mobileprovision
-
-# Xcode env
-ios/.xcode.env
-ios/.xcode.env.local
-
-# Android: NO trackear assets metidos por error (node_modules_* dentro de res)
-android/app/src/main/res/**/node_modules_*
-
-# Certificados / llaves (NO subir)
-*.p12
-*.p8
-*.cer
-*.crt
-*.pem
-*.mobileprovision
-*.keystore
-*.jks
-
-# Xcode env
-ios/.xcode.env
-ios/.xcode.env.local
-
-# Android: assets metidos por error
-android/app/src/main/res/**/node_modules_*
+.cxx/
+.externalNativeBuild/

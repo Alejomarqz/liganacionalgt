@@ -1,321 +1,1505 @@
-// TeamSquad.js — con dorsales enriquecidos desde events, soporte byTeam y pull-to-refresh
-import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, StyleSheet, RefreshControl, TouchableOpacity  } from 'react-native';
-import Avatar from './Avatar';
-import { API_WEB_DEPORT_URL } from '@env';
-import { withTheme } from '../utils/ThemeContext';
+// components/TeamSquad.js
+// Liga Nacional GT
+//
+// Plantilla exclusivamente desde:
+// /sistema/api/players.php?team_id=ID
 
-const RED  = '#d32f2f';
-const NAVY = '#0b1f3b';
-const POSN = { 1:'PO', 2:'DEF', 3:'MED', 4:'DEL' };
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
-const toNum = (v) => (v==null || v==='') ? NaN : Number(v);
-const toStr = (v) => (v==null) ? '' : String(v);
+import {
+  View,
+  Text,
+  SectionList,
+  ActivityIndicator,
+  StyleSheet,
+  RefreshControl,
+  TouchableOpacity,
+  Image,
+} from 'react-native';
 
-/* ===== Nombre: nick → PrimerNombre + PrimerApellido con partículas ===== */
-const PARTICLE_SETS = [
-  ["de"], ["del"], ["de","la"], ["de","los"], ["de","las"],
-  ["da"], ["do"], ["das"], ["dos"], ["van"], ["von"], ["la"], ["las"], ["los"]
+import {
+  useTheme,
+} from '../utils/ThemeContext';
+
+import {
+  BRAND,
+} from '../utils/theme';
+
+
+/* =========================================================
+   CONFIG
+========================================================= */
+
+const API_BASE =
+  'https://liganacionalgt.com/sistema/api';
+
+
+const ROLE_LABELS = {
+  POR: 'Portero',
+  GK: 'Portero',
+
+  LD: 'Lateral derecho',
+  DFC: 'Defensa central',
+  LI: 'Lateral izquierdo',
+  DEF: 'Defensa',
+  DF: 'Defensa',
+
+  MCD: 'Mediocentro defensivo',
+  MC: 'Mediocampista',
+  MCO: 'Mediocentro ofensivo',
+  MED: 'Mediocampista',
+  MF: 'Mediocampista',
+
+  ED: 'Extremo derecho',
+  EI: 'Extremo izquierdo',
+  DC: 'Delantero',
+  DEL: 'Delantero',
+  FW: 'Delantero',
+};
+
+
+const SECTION_ORDER = [
+  'Porteros',
+  'Defensas',
+  'Mediocampistas',
+  'Delanteros',
+  'Otros',
 ];
-const splitTokens = (s='') => String(s).trim().split(/\s+/u).filter(Boolean);
-function norm(words){ const parts=new Set(PARTICLE_SETS.map(a=>a.join(' '))); const out=[];
-  for(let i=0;i<words.length;i++){ let used=false;
-    if(i+1<words.length){const two=(words[i]+' '+words[i+1]).toLowerCase(); if(parts.has(two)){out.push(words[i].toLowerCase(),words[i+1].toLowerCase()); i++; used=true;}}
-    if(!used){const one=words[i].toLowerCase(); out.push(parts.has(one)?one:one.replace(/^\p{L}/u,c=>c.toUpperCase()));}}
-  return out.join(' ');
-}
-function pickSurname(last=''){const raw=splitTokens(last); if(!raw.length) return ''; const w0=(raw[0]||'').toLowerCase(); const w1=(raw[1]||'').toLowerCase();
-  if(PARTICLE_SETS.some(s=>s.length===2&&s[0]===w0&&s[1]===w1)&&raw[1]) return norm([raw[0],raw[1]]);
-  if(PARTICLE_SETS.some(s=>s.length===1&&s[0]===w0)&&raw[1]) return norm([raw[0],raw[1]]);
-  return norm([raw[0]]);
-}
-const firstName = (f='') => { const t=splitTokens(f); return t.length?norm([t[0]]):''; };
-const cleanNick = (n='') => { const t=splitTokens(n); return t.length?norm(t):''; };
-function displayNameFrom(name={}){ const nick=(name?.nick??'').trim(); if(nick) return cleanNick(nick);
-  return [firstName(name?.first||name?.given||''), pickSurname(name?.last||name?.family||name?.surname||'')].filter(Boolean).join(' ');
+
+
+/* =========================================================
+   API
+========================================================= */
+
+async function fetchPlayers(
+  teamId,
+) {
+  const url =
+    `${API_BASE}/players.php?team_id=${encodeURIComponent(
+      String(teamId),
+    )}&_=${Date.now()}`;
+
+
+  const response =
+    await fetch(
+      url,
+      {
+        headers: {
+          Accept: 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+      },
+    );
+
+
+  let json = null;
+
+
+  try {
+    json =
+      await response.json();
+  } catch {}
+
+
+  if (!response.ok) {
+    throw new Error(
+      json?.error ||
+      json?.message ||
+      `HTTP ${response.status}`,
+    );
+  }
+
+
+  return json || {};
 }
 
-/* ===== Extraer dorsales de events/{id}.json → players{} ===== */
-function numbersFromEventJSON(evt, teamId){
-  const map = new Map();
-  const tid = teamId!=null ? String(teamId) : null;
-  if(evt && evt.players && typeof evt.players==='object'){
-    for(const [pidKey,p] of Object.entries(evt.players)){
-      if(!p) continue;
-      const pid = toStr(p.playerId || p.id || p._id || pidKey);
-      const belongs = !tid || (p.teamId!=null && String(p.teamId)===tid);
-      const num = toNum(p.squadNo ?? p.shirt ?? p.number ?? p.dorsal);
-      if(pid && belongs && Number.isFinite(num) && !map.has(pid)) map.set(pid,num);
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function firstValue(
+  ...values
+) {
+  for (
+    const value of values
+  ) {
+    if (
+      value !== null &&
+      value !== undefined &&
+      value !== ''
+    ) {
+      return value;
     }
   }
-  return map;
+
+  return null;
 }
 
-async function fetchEventIds({ pattern, teamId, limit=20 }){
-  if(!pattern) return [];
-  const url = String(pattern).replace(':teamId', String(teamId));
-  try{
-    const r = await fetch(url, { cache: 'no-store' });
-    if(!r.ok) return [];
-    const j = await r.json();
-    const arr = Array.isArray(j) ? j : Object.values(j||{});
-    const ids = [];
-    for(const it of arr){
-      const id = (it && (it.id||it.eventId||it.matchId||it.eid)) ?? (typeof it==='number'||typeof it==='string'?it:null);
-      if(id!=null && !ids.includes(String(id))) ids.push(String(id));
-      if(ids.length>=limit) break;
-    }
-    return ids;
-  }catch{ return []; }
+
+function initials(
+  value = '',
+) {
+  return String(
+    value || '',
+  )
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(
+      word =>
+        word
+          .charAt(0)
+          .toUpperCase(),
+    )
+    .join('');
 }
 
-async function buildNumbersCache({ base, scope, eventIds, teamId }){
-  const cache = new Map();
-  for(const id of eventIds){
-    try{
-      const url = `${base}/${scope}/events/${id}.json`;
-      const r = await fetch(url, { cache: 'no-store' });
-      if(!r.ok) continue;
-      const j = await r.json();
-      const m = numbersFromEventJSON(j, teamId);
-      for(const [pid,num] of m.entries()) if(!cache.has(pid)) cache.set(pid,num);
-    }catch{}
+
+function normalizeRole(
+  value,
+) {
+  return String(
+    value || '',
+  )
+    .trim()
+    .toUpperCase();
+}
+
+
+function roleLabel(
+  value,
+) {
+  const code =
+    normalizeRole(
+      value,
+    );
+
+
+  return (
+    ROLE_LABELS[code] ||
+    String(
+      value ||
+      'Jugador',
+    )
+  );
+}
+
+
+function sectionForRole(
+  value,
+) {
+  const code =
+    normalizeRole(
+      value,
+    );
+
+
+  if (
+    [
+      'POR',
+      'GK',
+    ].includes(code)
+  ) {
+    return 'Porteros';
   }
-  return cache;
+
+
+  if (
+    [
+      'LD',
+      'DFC',
+      'LI',
+      'DEF',
+      'DF',
+    ].includes(code)
+  ) {
+    return 'Defensas';
+  }
+
+
+  if (
+    [
+      'MCD',
+      'MC',
+      'MCO',
+      'MED',
+      'MF',
+    ].includes(code)
+  ) {
+    return 'Mediocampistas';
+  }
+
+
+  if (
+    [
+      'ED',
+      'EI',
+      'DC',
+      'DEL',
+      'FW',
+    ].includes(code)
+  ) {
+    return 'Delanteros';
+  }
+
+
+  const text =
+    code.toLowerCase();
+
+
+  if (
+    text.includes(
+      'port',
+    )
+  ) {
+    return 'Porteros';
+  }
+
+
+  if (
+    text.includes(
+      'def',
+    ) ||
+    text.includes(
+      'lateral',
+    )
+  ) {
+    return 'Defensas';
+  }
+
+
+  if (
+    text.includes(
+      'medio',
+    )
+  ) {
+    return 'Mediocampistas';
+  }
+
+
+  if (
+    text.includes(
+      'del',
+    ) ||
+    text.includes(
+      'extremo',
+    )
+  ) {
+    return 'Delanteros';
+  }
+
+
+  return 'Otros';
 }
 
-/* ===== Normalización de jugadores ===== */
-function normalizePlayer(pid, wrap) {
-  const info = (wrap && wrap.info) ? wrap.info : (wrap || {});
-  const summary = (wrap && wrap.summary) ? wrap.summary : {};
+
+/* =========================================================
+   DATA
+========================================================= */
+
+function extractPlayers(
+  payload,
+) {
+  const candidates = [
+    payload?.players,
+    payload?.squad,
+    payload?.roster,
+    payload?.plantilla,
+    payload?.team?.players,
+    payload?.data?.players,
+    payload?.data,
+    payload,
+  ];
+
+
+  for (
+    const source of candidates
+  ) {
+    if (
+      Array.isArray(
+        source,
+      )
+    ) {
+      return source;
+    }
+  }
+
+
+  return [];
+}
+
+
+function normalizePlayer(
+  row,
+  index,
+) {
+  const player =
+    row?.player &&
+    typeof row.player ===
+      'object'
+      ? row.player
+      : row || {};
+
+
+  const id =
+    Number(
+      firstValue(
+        player?.id,
+        row?.player_id,
+        row?.playerId,
+        0,
+      ),
+    ) || 0;
+
+
+  const name =
+    String(
+      firstValue(
+        player?.name,
+        row?.name,
+        row?.player_name,
+        'Jugador',
+      ),
+    );
+
+
+  const role =
+    firstValue(
+      row?.role_code,
+      row?.roleCode,
+      row?.position,
+      player?.role,
+      player?.role_code,
+      player?.primary_position,
+      player?.primaryPosition,
+      '',
+    );
+
+
+  const shirtNumber =
+    firstValue(
+      row?.shirtNumber,
+      row?.shirt_number,
+      row?.number,
+      row?.dorsal,
+      player?.shirtNumber,
+      player?.shirt_number,
+      null,
+    );
+
+
+  const number =
+    shirtNumber !== null &&
+    shirtNumber !== ''
+      ? Number(shirtNumber)
+      : null;
+
+
   return {
-    id: toStr(pid ?? info.id ?? info.playerId),
-    _pid: toStr(pid ?? info.id ?? info.playerId),
-    teamId: info.teamId,
-    squadNo: info.squadNo,
-    posnId: info.posnId,
-    order: info.order,
-    name: info.name || {},
-    summary,
-    images: info.images || wrap?.images || {},
-    positionId: info.posnId,
-    playerId: toStr(pid ?? info.id ?? info.playerId),
+    id,
+
+    name,
+
+    photo:
+      firstValue(
+        player?.photo,
+        player?.photo_url,
+        player?.photoUrl,
+        row?.photo,
+        row?.photo_url,
+        null,
+      ),
+
+    shirtNumber:
+      Number.isFinite(number)
+        ? number
+        : null,
+
+    role:
+      String(
+        role || '',
+      ),
+
+    nationality:
+      String(
+        firstValue(
+          player?.nationality,
+          row?.nationality,
+          '',
+        ) || '',
+      ),
+
+    order:
+      index,
   };
 }
-function extractSquad(j){
-  const candidates = [ j?.players, j?.plantilla, j?.roster, j?.info?.squad, j?.team?.players, j?.squad, j?.plantel ].filter(Boolean);
-  let raw = [];
-  for(const src of candidates){
-    if(Array.isArray(src)){ raw = src; break; }
-    if(src && typeof src==='object'){ raw = Object.entries(src); break; }
-  }
-  let list=[];
-  if(raw.length){
-    if(Array.isArray(raw[0])) list = raw.map(([pid,wrap])=>normalizePlayer(pid,wrap));
-    else list = raw.map((wrap,idx)=>normalizePlayer(idx,wrap));
-  }
-  const coach =
-    list.find(p=>toNum(p.posnId)===5) ||
-    list.find(p=>String(p.role||'').toLowerCase().includes('coach')) || null;
-  return { list, coach };
-}
 
-/* ===== Componente ===== */
-function TeamSquad({
-  teamId,
-  scope = 'guatemala',
-  navigation,
-  eventIdsHint = null,           // opcional: para pruebas rápidas
-  eventsByTeamUrlPattern = null, // recomendado: /events/byTeam/:teamId.json
-  theme,                         // ⬅️ NUEVO
+
+/* =========================================================
+   PHOTO
+========================================================= */
+
+function PlayerPhoto({
+  uri,
+  name,
+  colors,
 }) {
-  const { colors } = theme;
-  const base = String(API_WEB_DEPORT_URL || '').replace(/\/+$/, '');
-  const sc   = String(scope).toLowerCase();
+  const [
+    failed,
+    setFailed,
+  ] =
+    useState(false);
 
 
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState(null);
-  const [raw, setRaw] = useState(null);
-  const [numCache, setNumCache] = useState(null);
-
-  // 🔽 pull-to-refresh
-  const [refreshing, setRefreshing] = useState(false);
-  const [reloadTs, setReloadTs]     = useState(0);
-
-  // 1) Cargar plantilla base del equipo
-  useEffect(()=>{
-    let cancel=false;
-    (async()=>{
-      try{
-        setLoading(true); setErr(null); setNumCache(null);
-        const url = `${base}/${sc}/statsCenter/teams/${teamId}.json?ts=${Date.now()}`;
-        const r = await fetch(url, { cache:'no-store' });
-        if(!r.ok) throw new Error(`HTTP ${r.status}`);
-        const j = await r.json();
-        if(!cancel) setRaw(j);
-      }catch(e){ if(!cancel) setErr(String(e||'Error de red')); }
-      finally{ if(!cancel) setLoading(false); }
-    })();
-    return ()=>{cancel=true;};
-  },[teamId, sc, base, reloadTs]);
-
-  // 2) Si faltan dorsales, completar desde events
-  useEffect(()=>{
-    let cancel=false;
-    (async()=>{
-      try{
-        const { list } = extractSquad(raw || {});
-        const hayFaltantes = (list||[]).some(p=>!Number.isFinite(toNum(p.squadNo)));
-        if(!hayFaltantes) return;
-
-        const ids = Array.isArray(eventIdsHint) && eventIdsHint.length
-          ? eventIdsHint.map(String)
-          : await fetchEventIds({ pattern: eventsByTeamUrlPattern, teamId, limit: 20 });
-
-        if(!ids.length) return;
-
-        const cache = await buildNumbersCache({ base, scope: sc, eventIds: ids, teamId });
-        if(!cancel) setNumCache(cache);
-      }catch{}
-    })();
-    return ()=>{cancel=true;};
-  },[raw, base, sc, teamId, eventIdsHint, eventsByTeamUrlPattern, reloadTs]);
-
-  // 3) Apagar el spinner de pull-to-refresh cuando termine la carga
-  useEffect(() => {
-    if (!loading && refreshing) setRefreshing(false);
-  }, [loading, refreshing]);
-
-  const { data, coach } = useMemo(()=>{
-    const { list, coach } = extractSquad(raw || {});
-    const enriched = list.map(p=>{
-      const n = toNum(p.squadNo);
-      if(Number.isFinite(n) && n>0) return p;
-      const pid = toStr(p?.id || p?._pid || p?.playerId);
-      const from = numCache?.get(pid);
-      return (from && Number.isFinite(from)) ? { ...p, squadNo: from } : p;
-    });
-
-    const arr = enriched.filter(p=>[1,2,3,4].includes(toNum(p.posnId)));
-    arr.sort((a,b)=>{
-      const pa=toNum(a.posnId), pb=toNum(b.posnId);
-      if(pa!==pb) return (pa||9)-(pb||9);
-      const na=toNum(a.squadNo), nb=toNum(b.squadNo);
-      if(Number.isFinite(na) && Number.isFinite(nb)) return na-nb;
-      if(Number.isFinite(na)) return -1;
-      if(Number.isFinite(nb)) return  1;
-      const an=displayNameFrom(a?.name||{}).toLowerCase();
-      const bn=displayNameFrom(b?.name||{}).toLowerCase();
-      return an.localeCompare(bn,'es');
-    });
-    return { data: arr, coach };
-  },[raw, numCache]);
-
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.accent} />
-        <Text style={[styles.muted, { color: colors.textMuted }]}>Cargando plantilla…</Text>
-      </View>
-    );
-  }
-
-  if (err || (!data?.length && !coach)) {
-    return (
-      <View style={styles.center}>
-        <Text style={[styles.muted, { color: colors.textMuted }]}> Sin información de plantilla para este torneo.</Text>
-        <Text style={[styles.muted, { marginTop: 4, color: colors.textMuted }, ]}> {err ? `(${err})` : `(teamId=${teamId}, scope=${scope})`}</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.appBg }}>
-      <FlatList
-        data={data}
-        keyExtractor={(it, idx) => toStr(it?.id || it?._pid || it?.playerId || idx)}
-        ItemSeparatorComponent={() => <View style={styles.sep} />}
-        contentContainerStyle={{ padding: 10, paddingBottom: 10 }}
-        renderItem={({ item }) => {
-  const pid    = item?.id || item?._pid || item?.playerId;
-  const name   = displayNameFrom(item?.name || {});
-  const numInt = Number.parseInt(item?.squadNo, 10);
-  const hasNumber = Number.isFinite(numInt) && numInt > 0;
-  const posId  = toNum(item?.posnId || item?.positionId || 0);
-  const pos    = POSN[posId] || '—';
-
-  return (
-    <TouchableOpacity
-      activeOpacity={0.75}
-      onPress={() => navigation?.navigate('Player', {
-        playerId: pid,
-        teamId,
-        scope,
-        player: item, // mandamos info+summary para fallback
-      })}
-    >
-      <View style={[styles.row, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }, ]} >
-        <Avatar id={pid} player={item} size={44} rounded borderColor={colors.cardBorder} style={{ marginRight: 10 }} />
-        <View style={[styles.numPill, { backgroundColor: colors.rowBg || colors.cardBg }, ]}>
-          <Text style={[styles.numText, { color: colors.accent }]}> {hasNumber ? `${numInt}` : '—'} </Text>
-        </View>
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text
-            style={[styles.name, { color: colors.text }]}
-            numberOfLines={1}
-          >
-            {name}
-          </Text>
-          <Text
-            style={[styles.sub, { color: colors.textMuted }]}
-            numberOfLines={1}
-          >
-            {pos}
-          </Text>
-  </View>
-</View>
-
-    </TouchableOpacity>
+  useEffect(
+    () => {
+      setFailed(false);
+    },
+    [uri],
   );
-}}
-        // 🔽 Pull-to-refresh con spinner rojo (igual que TeamMatches)
-        refreshControl={
-  <RefreshControl
-    refreshing={refreshing}
-    onRefresh={() => {
-      if (!refreshing) {
-        setRefreshing(true);
-        setReloadTs(Date.now());
-      }
-    }}
-    colors={[colors.accent]}              // Android
-    tintColor={colors.accent}             // iOS
-    progressBackgroundColor={colors.cardBg} // Android
-  />
-}
 
+
+  if (
+    uri &&
+    !failed
+  ) {
+    return (
+      <Image
+        source={{
+          uri,
+        }}
+        style={
+          styles.photo
+        }
+        resizeMode="cover"
+        onError={() =>
+          setFailed(true)
+        }
       />
+    );
+  }
+
+
+  return (
+    <View
+      style={[
+        styles.photo,
+        styles.photoFallback,
+        {
+          backgroundColor:
+            colors.cardBorder,
+        },
+      ]}
+    >
+      <Text
+        style={[
+          styles.photoInitials,
+          {
+            color:
+              colors.textMuted,
+          },
+        ]}
+      >
+        {initials(name) ||
+          '?'}
+      </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  center: { paddingVertical: 20, alignItems: 'center' },
-  muted: { color: '#666', fontSize: 13, marginTop: 6 },
-  row: {
-    flexDirection:'row', alignItems:'center',
-    backgroundColor:'#fff', borderWidth:1, borderColor:'rgba(0,0,0,0.06)',
-    padding:10, borderRadius:10,
-  },
-  numPill: {
-    minWidth: 42, paddingHorizontal: 10, height: 26,
-    borderRadius: 7, backgroundColor: '#f7f7f7',
-    alignItems:'center', justifyContent:'center',
-  },
-  numText: { fontSize: 13, fontWeight: '800', color: RED },
-  name: { fontSize: 14, fontWeight: '700', color: NAVY },
-  sub:  { fontSize: 12, color: '#555', marginTop: 2 },
-  sep: { height: 8 },
-});
-export default withTheme(TeamSquad);
+
+/* =========================================================
+   ROW
+========================================================= */
+
+function PlayerRow({
+  player,
+  teamId,
+  navigation,
+  colors,
+  isDark,
+}) {
+  const hasNumber =
+    Number.isFinite(
+      player?.shirtNumber,
+    );
+
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.75}
+      onPress={() => {
+        if (!player?.id) {
+          return;
+        }
+
+
+        navigation
+          ?.navigate?.(
+            'Player',
+            {
+              playerId:
+                Number(
+                  player.id,
+                ),
+
+              teamId:
+                Number(
+                  teamId,
+                ),
+
+              scope:
+                'guatemala',
+
+              player: {
+                id:
+                  Number(
+                    player.id,
+                  ),
+
+                name:
+                  player.name,
+
+                photo:
+                  player.photo,
+
+                shirtNumber:
+                  player.shirtNumber,
+
+                role:
+                  player.role,
+
+                nationality:
+                  player.nationality,
+              },
+            },
+          );
+      }}
+      style={[
+        styles.playerCard,
+        {
+          backgroundColor:
+            colors.cardBg,
+
+          borderColor:
+            colors.cardBorder,
+        },
+      ]}
+    >
+      <PlayerPhoto
+        uri={
+          player?.photo
+        }
+        name={
+          player?.name
+        }
+        colors={
+          colors
+        }
+      />
+
+
+      {/* DORSAL PEQUEÑO */}
+
+      <View
+        style={[
+          styles.numberBox,
+          {
+            backgroundColor:
+              isDark
+                ? 'rgba(49,93,228,0.12)'
+                : '#EEF3FF',
+          },
+        ]}
+      >
+        <Text
+          style={
+            styles.number
+          }
+        >
+          {hasNumber
+            ? player.shirtNumber
+            : '—'}
+        </Text>
+      </View>
+
+
+      <View
+        style={
+          styles.playerInfo
+        }
+      >
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.playerName,
+            {
+              color:
+                colors.text,
+            },
+          ]}
+        >
+          {player?.name ||
+            'Jugador'}
+        </Text>
+
+
+        <View
+          style={
+            styles.playerMeta
+          }
+        >
+          <Text
+            numberOfLines={1}
+            style={[
+              styles.playerRole,
+              {
+                color:
+                  colors.textMuted,
+              },
+            ]}
+          >
+            {roleLabel(
+              player?.role,
+            )}
+          </Text>
+
+
+          {!!player?.nationality && (
+            <>
+              <View
+                style={[
+                  styles.metaDot,
+                  {
+                    backgroundColor:
+                      colors.textMuted,
+                  },
+                ]}
+              />
+
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.playerNationality,
+                  {
+                    color:
+                      colors.textMuted,
+                  },
+                ]}
+              >
+                {player.nationality}
+              </Text>
+            </>
+          )}
+        </View>
+      </View>
+
+
+      <Text
+        style={[
+          styles.chevron,
+          {
+            color:
+              colors.textMuted,
+          },
+        ]}
+      >
+        ›
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
+
+/* =========================================================
+   COMPONENT
+========================================================= */
+
+export default function TeamSquad({
+  teamId,
+  navigation,
+  bottomPadding = 150,
+}) {
+  const {
+    theme,
+  } =
+    useTheme();
+
+
+  const colors =
+    theme.colors;
+
+
+  const isDark =
+    theme.mode ===
+    'dark';
+
+
+  const mounted =
+    useRef(true);
+
+
+  const [
+    players,
+    setPlayers,
+  ] =
+    useState([]);
+
+
+  const [
+    loading,
+    setLoading,
+  ] =
+    useState(true);
+
+
+  const [
+    refreshing,
+    setRefreshing,
+  ] =
+    useState(false);
+
+
+  const [
+    error,
+    setError,
+  ] =
+    useState('');
+
+
+  const load =
+    useCallback(
+      async ({
+        silent = false,
+      } = {}) => {
+        if (!teamId) {
+          return;
+        }
+
+
+        if (!silent) {
+          setLoading(true);
+        }
+
+
+        setError('');
+
+
+        try {
+          const payload =
+            await fetchPlayers(
+              teamId,
+            );
+
+
+          const normalized =
+            extractPlayers(
+              payload,
+            )
+              .map(
+                normalizePlayer,
+              )
+              .filter(
+                player =>
+                  !!player.id,
+              );
+
+
+          if (mounted.current) {
+            setPlayers(
+              normalized,
+            );
+          }
+
+
+        } catch (
+          loadError
+        ) {
+          console.warn(
+            '[TeamSquad]',
+            loadError?.message ||
+            loadError,
+          );
+
+
+          if (mounted.current) {
+            setError(
+              loadError?.message ||
+              'No se pudo cargar la plantilla.',
+            );
+          }
+
+
+        } finally {
+          if (
+            mounted.current &&
+            !silent
+          ) {
+            setLoading(false);
+          }
+        }
+      },
+      [
+        teamId,
+      ],
+    );
+
+
+  useEffect(
+    () => {
+      mounted.current = true;
+
+      load();
+
+
+      return () => {
+        mounted.current = false;
+      };
+    },
+    [
+      load,
+    ],
+  );
+
+
+  const sections =
+    useMemo(
+      () => {
+        const map =
+          new Map(
+            SECTION_ORDER.map(
+              section => [
+                section,
+                [],
+              ],
+            ),
+          );
+
+
+        players.forEach(
+          player => {
+            const section =
+              sectionForRole(
+                player?.role,
+              );
+
+
+            map
+              .get(section)
+              ?.push(player);
+          },
+        );
+
+
+        for (
+          const list of map.values()
+        ) {
+          list.sort(
+            (
+              a,
+              b,
+            ) => {
+              const numberA =
+                Number(
+                  a?.shirtNumber,
+                );
+
+
+              const numberB =
+                Number(
+                  b?.shirtNumber,
+                );
+
+
+              const validA =
+                Number.isFinite(
+                  numberA,
+                );
+
+
+              const validB =
+                Number.isFinite(
+                  numberB,
+                );
+
+
+              if (
+                validA &&
+                validB &&
+                numberA !==
+                  numberB
+              ) {
+                return (
+                  numberA -
+                  numberB
+                );
+              }
+
+
+              if (
+                validA &&
+                !validB
+              ) {
+                return -1;
+              }
+
+
+              if (
+                !validA &&
+                validB
+              ) {
+                return 1;
+              }
+
+
+              return String(
+                a?.name ||
+                '',
+              ).localeCompare(
+                String(
+                  b?.name ||
+                  '',
+                ),
+                'es',
+              );
+            },
+          );
+        }
+
+
+        return SECTION_ORDER
+          .map(
+            title => ({
+              title,
+
+              data:
+                map.get(title) ||
+                [],
+            }),
+          )
+          .filter(
+            section =>
+              section.data.length >
+              0,
+          );
+      },
+      [
+        players,
+      ],
+    );
+
+
+  const refresh =
+    useCallback(
+      async () => {
+        setRefreshing(true);
+
+        try {
+          await load({
+            silent: true,
+          });
+        } finally {
+          if (mounted.current) {
+            setRefreshing(false);
+          }
+        }
+      },
+      [
+        load,
+      ],
+    );
+
+
+  if (loading) {
+    return (
+      <View
+        style={
+          styles.center
+        }
+      >
+        <ActivityIndicator
+          size="small"
+          color={
+            BRAND.primary
+          }
+        />
+
+        <Text
+          style={[
+            styles.stateText,
+            {
+              color:
+                colors.textMuted,
+            },
+          ]}
+        >
+          Cargando plantilla…
+        </Text>
+      </View>
+    );
+  }
+
+
+  if (
+    error &&
+    !players.length
+  ) {
+    return (
+      <View
+        style={
+          styles.center
+        }
+      >
+        <Text
+          style={
+            styles.stateIcon
+          }
+        >
+          👥
+        </Text>
+
+        <Text
+          style={[
+            styles.stateTitle,
+            {
+              color:
+                colors.text,
+            },
+          ]}
+        >
+          Plantilla no disponible
+        </Text>
+
+        <Text
+          style={[
+            styles.stateText,
+            {
+              color:
+                colors.textMuted,
+            },
+          ]}
+        >
+          {error}
+        </Text>
+
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() =>
+            load()
+          }
+          style={
+            styles.retryButton
+          }
+        >
+          <Text
+            style={
+              styles.retryText
+            }
+          >
+            Reintentar
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+
+  return (
+    <SectionList
+      sections={
+        sections
+      }
+      keyExtractor={
+        item =>
+          String(
+            item?.id,
+          )
+      }
+      style={[
+        styles.list,
+        {
+          backgroundColor:
+            colors.screenBg,
+        },
+      ]}
+      contentContainerStyle={{
+        paddingHorizontal: 10,
+        paddingTop: 7,
+        paddingBottom:
+          bottomPadding,
+      }}
+      showsVerticalScrollIndicator={
+        false
+      }
+      stickySectionHeadersEnabled={
+        false
+      }
+      refreshControl={
+        <RefreshControl
+          refreshing={
+            refreshing
+          }
+          onRefresh={
+            refresh
+          }
+          colors={[
+            BRAND.primary,
+          ]}
+          tintColor={
+            BRAND.primary
+          }
+          progressBackgroundColor={
+            colors.cardBg
+          }
+        />
+      }
+      renderSectionHeader={
+        ({
+          section,
+        }) => (
+          <View
+            style={
+              styles.sectionHeader
+            }
+          >
+            <Text
+              style={[
+                styles.sectionTitle,
+                {
+                  color:
+                    colors.text,
+                },
+              ]}
+            >
+              {section.title}
+            </Text>
+
+
+            <View
+              style={[
+                styles.sectionCount,
+                {
+                  backgroundColor:
+                    isDark
+                      ? 'rgba(49,93,228,0.12)'
+                      : '#EEF3FF',
+                },
+              ]}
+            >
+              <Text
+                style={
+                  styles.sectionCountText
+                }
+              >
+                {section.data.length}
+              </Text>
+            </View>
+
+
+            <View
+              style={[
+                styles.sectionLine,
+                {
+                  backgroundColor:
+                    colors.cardBorder,
+                },
+              ]}
+            />
+          </View>
+        )
+      }
+      renderItem={
+        ({
+          item,
+        }) => (
+          <PlayerRow
+            player={
+              item
+            }
+            teamId={
+              teamId
+            }
+            navigation={
+              navigation
+            }
+            colors={
+              colors
+            }
+            isDark={
+              isDark
+            }
+          />
+        )
+      }
+      ItemSeparatorComponent={() => (
+        <View
+          style={{
+            height: 6,
+          }}
+        />
+      )}
+      SectionSeparatorComponent={() => (
+        <View
+          style={{
+            height: 4,
+          }}
+        />
+      )}
+    />
+  );
+}
+
+
+/* =========================================================
+   STYLES
+========================================================= */
+
+const styles =
+  StyleSheet.create({
+
+    list: {
+      flex: 1,
+    },
+
+
+    sectionHeader: {
+      minHeight: 36,
+
+      flexDirection: 'row',
+      alignItems: 'center',
+
+      paddingHorizontal: 3,
+      paddingTop: 6,
+
+      gap: 7,
+    },
+
+    sectionTitle: {
+      fontFamily:
+        'Poppins-SemiBold',
+
+      fontSize: 10.5,
+    },
+
+    sectionCount: {
+      minWidth: 20,
+      height: 20,
+
+      borderRadius: 10,
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      paddingHorizontal: 5,
+    },
+
+    sectionCountText: {
+      color:
+        BRAND.primary,
+
+      fontFamily:
+        'Poppins-Bold',
+
+      fontSize: 7.5,
+    },
+
+    sectionLine: {
+      flex: 1,
+
+      height:
+        StyleSheet.hairlineWidth,
+    },
+
+
+    /* PLAYER */
+
+    playerCard: {
+      minHeight: 58,
+
+      flexDirection: 'row',
+      alignItems: 'center',
+
+      borderWidth: 1,
+      borderRadius: 13,
+
+      paddingHorizontal: 9,
+      paddingVertical: 6,
+    },
+
+    photo: {
+      width: 42,
+      height: 42,
+
+      borderRadius: 21,
+
+      marginRight: 8,
+    },
+
+    photoFallback: {
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    photoInitials: {
+      fontFamily:
+        'Poppins-SemiBold',
+
+      fontSize: 9,
+    },
+
+
+    /* DORSAL MÁS PEQUEÑO */
+
+    numberBox: {
+      width: 24,
+      height: 24,
+
+      borderRadius: 7,
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      marginRight: 8,
+    },
+
+    number: {
+      color:
+        BRAND.primary,
+
+      fontFamily:
+        'Poppins-Bold',
+
+      fontSize: 8.5,
+
+      includeFontPadding: false,
+    },
+
+
+    playerInfo: {
+      flex: 1,
+      minWidth: 0,
+    },
+
+    playerName: {
+      fontFamily:
+        'Poppins-SemiBold',
+
+      fontSize: 11.5,
+      lineHeight: 16,
+    },
+
+    playerMeta: {
+      flexDirection: 'row',
+      alignItems: 'center',
+
+      marginTop: 1,
+    },
+
+    playerRole: {
+      maxWidth: '68%',
+
+      fontFamily:
+        'Poppins-Regular',
+
+      fontSize: 8,
+    },
+
+    metaDot: {
+      width: 3,
+      height: 3,
+
+      borderRadius: 2,
+
+      marginHorizontal: 5,
+
+      opacity: 0.5,
+    },
+
+    playerNationality: {
+      flex: 1,
+
+      fontFamily:
+        'Poppins-Regular',
+
+      fontSize: 8,
+    },
+
+    chevron: {
+      marginLeft: 6,
+
+      fontFamily:
+        'Poppins-Regular',
+
+      fontSize: 18,
+    },
+
+
+    /* STATES */
+
+    center: {
+      flex: 1,
+
+      alignItems: 'center',
+      justifyContent: 'center',
+
+      paddingHorizontal: 28,
+      paddingBottom: 100,
+    },
+
+    stateIcon: {
+      fontSize: 29,
+      marginBottom: 8,
+    },
+
+    stateTitle: {
+      fontFamily:
+        'Poppins-SemiBold',
+
+      fontSize: 13,
+    },
+
+    stateText: {
+      maxWidth: 280,
+
+      marginTop: 5,
+
+      fontFamily:
+        'Poppins-Regular',
+
+      fontSize: 9.5,
+      lineHeight: 15,
+
+      textAlign: 'center',
+    },
+
+    retryButton: {
+      marginTop: 13,
+
+      backgroundColor:
+        BRAND.primary,
+
+      borderRadius: 999,
+
+      paddingHorizontal: 18,
+      paddingVertical: 8,
+    },
+
+    retryText: {
+      color: '#FFFFFF',
+
+      fontFamily:
+        'Poppins-SemiBold',
+
+      fontSize: 10,
+    },
+
+  });

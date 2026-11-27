@@ -1,125 +1,111 @@
 // components/NotificationPrompt.js
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react-native';
+import {
+  View, Text, StyleSheet, TouchableOpacity,
+  Animated, Image,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTheme } from '../utils/ThemeContext';
-import LogoImg from './LogoImg';
+import { useTheme }   from '../utils/ThemeContext';
+import LogoImg        from './LogoImg';
 import { requestUserPermissionIfNeeded } from '../services/notifications';
-import { getBellIcon } from '../utils/bell';
 
-const DISMISS_KEY = (id) => `fc_notiprompt_dismiss_${id || 'global'}`;
-const SNOOZE_UNTIL_KEY = (id) => `fc_notiprompt_snooze_until_${id || 'global'}`;
+/* ─── Storage keys ───────────────────────────────────────── */
+const DISMISS_KEY     = id => `fc_notiprompt_dismiss_${id || 'global'}`;
+const SNOOZE_UNTIL_KEY = id => `fc_notiprompt_snooze_until_${id || 'global'}`;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-
+/* ══════════════════════════════════════════════════════════
+   NOTIFICATION PROMPT
+══════════════════════════════════════════════════════════ */
 export default function NotificationPrompt({
-  id = 'global',
-  mode = 'team',
+  id          = 'global',
+  mode        = 'team',
   teamId,
-  enabled = false,     // ✅ NUEVO: ya está siguiendo (campana ON)
+  enabled     = false,
   onActivate,
-  delayMs = 2000,
-  shouldShow = true,
-  onVisibleChange, // ✅ NUEVO
+  delayMs     = 2000,
+  shouldShow  = true,
+  onVisibleChange,
 }) {
-
   const { theme } = useTheme();
-  const colors = theme.colors;
-  const isDark = theme?.mode === 'dark';
+  const colors    = theme.colors;
+  const isDark    = theme?.mode === 'dark';
 
-  const [visible, setVisible] = useState(false);
+  const [visible,    setVisible]    = useState(false);
   const [neverAgain, setNeverAgain] = useState(false);
-  const [anim] = useState(() => new Animated.Value(0));
+  const [anim]                      = useState(() => new Animated.Value(0));
 
+  /* ── Lógica de visibilidad ── */
   useEffect(() => {
-  let mounted = true;
-  let timer;
+    let mounted = true, timer;
+    try { onVisibleChange?.(false); } catch {}
 
-  // ✅ (PARTE 4) Por defecto, dile al padre: "no estoy visible"
-  try { onVisibleChange?.(false); } catch {}
+    (async () => {
+      try {
+        if (enabled)    return;
+        if (!shouldShow) return;
 
-  (async () => {
-    try {
-      // ✅ si ya sigue (campana ON), NO mostrar prompt
-      if (enabled) return;
+        const dismissed = await AsyncStorage.getItem(DISMISS_KEY(id));
+        if (dismissed === '1') return;
 
-      // ✅ si "No mostrar de nuevo" está activo, NO mostrar
-      const dismissed = await AsyncStorage.getItem(DISMISS_KEY(id));
-      if (dismissed === '1') return;
+        const snoozeRaw   = await AsyncStorage.getItem(SNOOZE_UNTIL_KEY(id));
+        const snoozeUntil = snoozeRaw ? Number(snoozeRaw) : 0;
+        if (snoozeUntil && Date.now() < snoozeUntil) return;
 
-      // ✅ si está en snooze (AHORA NO), NO mostrar hasta que venza
-      const snoozeUntilRaw = await AsyncStorage.getItem(SNOOZE_UNTIL_KEY(id));
-      const snoozeUntil = snoozeUntilRaw ? Number(snoozeUntilRaw) : 0;
-      if (snoozeUntil && Date.now() < snoozeUntil) return;
+        timer = setTimeout(() => {
+          if (!mounted) return;
+          setVisible(true);
+          try { onVisibleChange?.(true); } catch {}
+          Animated.spring(anim, { toValue: 1, useNativeDriver: true, tension: 80, friction: 10 }).start();
+        }, delayMs);
+      } catch {}
+    })();
 
-      // ✅ si el padre dice "no mostrar", NO mostrar
-      if (!shouldShow) return;
+    return () => { mounted = false; clearTimeout(timer); };
+  }, [id, delayMs, anim, enabled, shouldShow]);
 
-
-      timer = setTimeout(() => {
-  if (!mounted) return;
-  setVisible(true);
-  try { onVisibleChange?.(true); } catch {}
-  Animated.timing(anim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
-}, delayMs);
-
-    } catch {}
-  })();
-
-  return () => {
-    mounted = false;
-    clearTimeout(timer);
+  /* ── Handlers ── */
+  const dismiss = () => {
+    Animated.timing(anim, { toValue: 0, duration: 180, useNativeDriver: true }).start(() => {
+      setVisible(false);
+      try { onVisibleChange?.(false); } catch {}
+    });
   };
-}, [id, delayMs, anim, enabled, shouldShow]); // ✅ enabled en deps
-
 
   const close = async () => {
-    if (neverAgain) await AsyncStorage.setItem(DISMISS_KEY(id), '1');
-    Animated.timing(anim, { toValue: 0, duration: 180, useNativeDriver: true })
-  .start(() => {
-    setVisible(false);
-    try { onVisibleChange?.(false); } catch {}
-  });
-
+    if (neverAgain) {
+      try { await AsyncStorage.setItem(DISMISS_KEY(id), '1'); } catch {}
+    }
+    dismiss();
   };
 
   const snooze24h = async () => {
-  try {
-    await AsyncStorage.setItem(SNOOZE_UNTIL_KEY(id), String(Date.now() + DAY_MS));
-  } catch {}
-  close();
-};
-
+    try { await AsyncStorage.setItem(SNOOZE_UNTIL_KEY(id), String(Date.now() + DAY_MS)); } catch {}
+    dismiss();
+  };
 
   const handleActivate = async () => {
-  try {
-    await requestUserPermissionIfNeeded();
-    if (typeof onActivate === 'function') await onActivate();
-    // ✅ NO guardamos DISMISS aquí
-    // (el prompt dejará de salir porque enabled pasará a true desde la pantalla)
-  } finally {
-    close();
-  }
-};
-
-
-
+    try {
+      await requestUserPermissionIfNeeded();
+      if (typeof onActivate === 'function') await onActivate();
+    } finally {
+      dismiss();
+    }
+  };
 
   if (!visible) return null;
 
-  const isTeam = mode === 'team';
-  const title = isTeam ? 'Sigue a tu equipo y activa las notificaciones' : 'Activa las alertas de este partido';
-  const body = isTeam
-    ? 'Activa las alertas para recibir avisos cuando este equipo juegue: inicio, goles, resultado final y. Puedes cambiarlo después en Ajustes.'
+  /* ── Textos según modo ── */
+  const isTeam   = mode === 'team';
+  const title    = isTeam
+    ? 'Sigue a tu equipo'
+    : 'Activa las alertas';
+  const body     = isTeam
+    ? 'Recibe avisos cuando este equipo juegue: inicio del partido, goles y resultado final. Puedes desactivarlo cuando quieras.'
     : 'Te avisaremos cuando empiece, haya goles y cuando termine el encuentro. Puedes ajustar esto más tarde en Ajustes.';
-  const ctaLabel = isTeam ? 'SEGUIR' : 'ACTIVAR';
+  const ctaLabel = isTeam ? 'Seguir' : 'Activar';
 
-  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [0.96, 1] });
-
-  // ✅ campana "on" (amarilla) usando tu sistema actual (PNG)
-  const bellSrc = require('../resources/bell_yellow.png');
-
-
+  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [0.94, 1] });
 
   return (
     <View pointerEvents="box-none" style={styles.overlay}>
@@ -128,66 +114,75 @@ export default function NotificationPrompt({
           styles.card,
           {
             backgroundColor: colors.cardBg,
-            borderColor: colors.cardBorder,
-            transform: [{ scale }],
-            opacity: anim,
+            borderColor:     colors.cardBorder,
+            opacity:         anim,
+            transform:       [{ scale }],
           },
         ]}
       >
+        {/* ── Header ── */}
         <View style={styles.headerRow}>
           {isTeam && teamId ? (
-  <LogoImg
-    teamId={String(teamId)}
-    size={44}
-    style={{ marginRight: 12 }}   // solo espacio a la derecha
-  />
-) : (
-  <View
-    style={[
-      styles.iconCircle,
-      { borderColor: colors.cardBorder, backgroundColor: isDark ? '#0b1220' : '#fff' },
-    ]}
-  >
-    <Image source={bellSrc} style={{ width: 22, height: 22, resizeMode: 'contain' }} />
-  </View>
-)}
+            <LogoImg teamId={String(teamId)} size={44} style={styles.logoImg} />
+          ) : (
+            <View style={[
+              styles.bellCircle,
+              { backgroundColor: isDark ? `${colors.accent}22` : `${colors.accent}12`, borderColor: colors.cardBorder },
+            ]}>
+              <Image
+                source={require('../resources/bell_yellow.png')}
+                style={styles.bellIcon}
+              />
+            </View>
+          )}
 
-
-          <View style={{ flex: 1 }}>
+          <View style={styles.headerText}>
             <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
           </View>
         </View>
 
+        {/* ── Cuerpo ── */}
         <Text style={[styles.body, { color: colors.textMuted }]}>{body}</Text>
 
+        {/* ── Checkbox "no mostrar de nuevo" ── */}
         <TouchableOpacity
-          style={styles.checkboxRow}
-          onPress={() => setNeverAgain((v) => !v)}
-          activeOpacity={0.85}
+          onPress={() => setNeverAgain(v => !v)}
+          activeOpacity={0.75}
+          style={styles.checkRow}
         >
-          <View
-            style={[
-              styles.checkboxBox,
-              {
-                borderColor: colors.cardBorder,
-                backgroundColor: neverAgain ? colors.accent : 'transparent',
-              },
-            ]}
-          />
-          <Text style={[styles.checkboxLabel, { color: colors.textMuted }]}>No mostrar de nuevo</Text>
+          <View style={[
+            styles.checkbox,
+            {
+              borderColor:     neverAgain ? colors.accent : colors.cardBorder,
+              backgroundColor: neverAgain ? colors.accent : 'transparent',
+            },
+          ]}>
+            {neverAgain && <Text style={styles.checkmark}>✓</Text>}
+          </View>
+          <Text style={[styles.checkLabel, { color: colors.textMuted }]}>
+            No mostrar de nuevo
+          </Text>
         </TouchableOpacity>
 
+        {/* ── Divider ── */}
+        <View style={[styles.divider, { backgroundColor: colors.cardBorder }]} />
+
+        {/* ── Botones ── */}
         <View style={styles.buttonsRow}>
-          <TouchableOpacity onPress={snooze24h} style={styles.btnGhost} activeOpacity={0.85}>
-            <Text style={[styles.btnGhostText, { color: colors.textMuted }]}>AHORA NO</Text>
+          <TouchableOpacity
+            onPress={snooze24h}
+            activeOpacity={0.7}
+            style={styles.btnGhost}
+          >
+            <Text style={[styles.btnGhostText, { color: colors.textMuted }]}>Ahora no</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             onPress={handleActivate}
+            activeOpacity={0.85}
             style={[styles.btnPrimary, { backgroundColor: colors.accent }]}
-            activeOpacity={0.9}
           >
-            <Text style={styles.btnTextPrimary}>{ctaLabel}</Text>
+            <Text style={styles.btnPrimaryText}>{ctaLabel}</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -195,29 +190,64 @@ export default function NotificationPrompt({
   );
 }
 
+/* ─── Styles ─────────────────────────────────────────────── */
 const styles = StyleSheet.create({
   overlay: {
     position: 'absolute', left: 0, right: 0, top: 0, bottom: 0,
-    alignItems: 'center', justifyContent: 'center', pointerEvents: 'box-none',
+    alignItems: 'center', justifyContent: 'center',
+    pointerEvents: 'box-none',
   },
+
   card: {
-    width: '90%', maxWidth: 400, borderRadius: 18, borderWidth: 1,
-    paddingHorizontal: 16, paddingTop: 14, paddingBottom: 12,
-    shadowOpacity: 0.20, shadowRadius: 18, shadowOffset: { width: 0, height: 10 }, elevation: 14,
+    width: '88%', maxWidth: 400,
+    borderRadius: 20, borderWidth: 1,
+    paddingHorizontal: 18, paddingTop: 16, paddingBottom: 14,
+    shadowOpacity: 0.18, shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 14,
   },
-  headerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  iconCircle: {
-    width: 44, height: 44, borderRadius: 22, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+
+  /* Header */
+  headerRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 12 },
+  logoImg:    { marginRight: 0 },
+  bellCircle: {
+    width: 44, height: 44, borderRadius: 22,
+    borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
   },
-  title: { fontSize: 16, fontWeight: '800', lineHeight: 20 },
-  body: { fontSize: 13, fontWeight: '500', lineHeight: 18, marginBottom: 10 },
-  checkboxRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  checkboxBox: { width: 16, height: 16, borderRadius: 4, borderWidth: 1, marginRight: 8 },
-  checkboxLabel: { fontSize: 12, fontWeight: '600' },
-  buttonsRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
-  btnGhost: { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 12 },
-  btnGhostText: { fontSize: 12, fontWeight: '800' },
-  btnPrimary: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, minWidth: 96, alignItems: 'center' },
-  btnTextPrimary: { color: '#fff', fontSize: 12, fontWeight: '900', letterSpacing: 0.2 },
+  bellIcon:   { width: 22, height: 22, resizeMode: 'contain' },
+  headerText: { flex: 1 },
+  title:      { fontFamily: 'Poppins-Bold', fontSize: 15, lineHeight: 20 },
+
+  /* Cuerpo */
+  body: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 13, lineHeight: 19,
+    marginBottom: 12,
+  },
+
+  /* Checkbox */
+  checkRow:  { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 8 },
+  checkbox:  {
+    width: 18, height: 18, borderRadius: 5, borderWidth: 1.5,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  checkmark: { color: '#fff', fontSize: 11, fontFamily: 'Poppins-Bold', lineHeight: 13 },
+  checkLabel: { fontFamily: 'Poppins-Regular', fontSize: 12 },
+
+  /* Divider */
+  divider: { height: StyleSheet.hairlineWidth, marginBottom: 12 },
+
+  /* Botones */
+  buttonsRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 },
+  btnGhost:   { paddingHorizontal: 12, paddingVertical: 9, borderRadius: 10 },
+  btnGhostText: { fontFamily: 'Poppins-SemiBold', fontSize: 13 },
+  btnPrimary: {
+    paddingHorizontal: 20, paddingVertical: 10,
+    borderRadius: 10, minWidth: 96, alignItems: 'center',
+  },
+  btnPrimaryText: {
+    fontFamily: 'Poppins-Bold', color: '#fff',
+    fontSize: 13, letterSpacing: 0.2,
+  },
 });

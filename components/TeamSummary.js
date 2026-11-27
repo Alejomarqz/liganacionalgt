@@ -6,27 +6,18 @@ import Card from './Card';
 import LogoImg from './LogoImg';
 import Avatar from './Avatar';
 import changeName, { bestPersonNameFromObj } from '../utils/changeName';
-import { useNavigation } from '@react-navigation/native';
 import { withTheme } from '../utils/ThemeContext';
+import { BRAND } from '../utils/theme';
 
-
-const BASE = String(API_WEB_DEPORT_URL || '').replace(/\/+$/, '');
+const BASE   = String(API_WEB_DEPORT_URL || '').replace(/\/+$/, '');
 const CUSTOM = String(API_CUSTOM_DIGITAL || '').replace(/\/+$/, '');
-const FUTURE = new Set([0]); // statusId = 0 → programado
-// --- CONFIG / URLs ---
-const API_JORNADAS_URL =
-  (typeof global !== 'undefined' && global.API_JORNADAS_URL) ||
-  'https://futbolchapin.net/edit/agenda-jornadas.json';
+const FUTURE = new Set([0]);
 
-// Si en tu proyecto ya existe API_WEB_DEPORT_URL, esto lo respeta.
-// Si no existe, reemplázalo por tu base real (¡importante!).
-const API_WEB_DEPORT_URL_FALLBACK =
-  (typeof global !== 'undefined' && global.API_WEB_DEPORT_URL) ||
-  'https://futbolchapin.net/html/v3/htmlCenter/data/deportes/futbol';
-
-  
-
-const firstValidId = (...vals) => {
+/* ─── Utils ──────────────────────────────────────────────── */
+const isHHMM       = s => /^\d{2}:\d{2}$/.test(String(s || '').slice(0, 5));
+const isPosNum     = v => Number.isFinite(Number(v)) && Number(v) > 0;
+const extractTailId = v => { const m = String(v ?? '').match(/(\d{4,})$/); return m ? Number(m[1]) : NaN; };
+const firstValidId  = (...vals) => {
   for (const v of vals) {
     const n = typeof v === 'number' ? v : Number(v);
     if (isPosNum(n)) return n;
@@ -35,27 +26,13 @@ const firstValidId = (...vals) => {
   }
   return NaN;
 };
-
-
-
-
-/* ============================== Utils ============================== */
-const isHHMM = (s) => /^\d{2}:\d{2}$/.test(String(s || '').slice(0, 5));
-const sanitizeForCard = (m) => ({
+const sanitizeForCard = m => ({
   ...m,
   _dateAdj: String(m._dateAdj || m.date || '').replace(/-/g, '').slice(0, 8),
   scheduledStart: isHHMM(m.scheduledStart) ? String(m.scheduledStart).slice(0, 5) : '',
   gmt: m.gmt != null && isFinite(+m.gmt) ? Number(m.gmt) : null,
 });
-
-// === Overlay helpers (jornadas + events) ===
-const isPosNum = (v) => Number.isFinite(Number(v)) && Number(v) > 0;
-const extractTailId = (v) => {
-  const m = String(v ?? '').match(/(\d{4,})$/);
-  return m ? Number(m[1]) : NaN;
-};
-
-const pickOverlay = (ev) => {
+const pickOverlay = ev => {
   if (!ev || typeof ev !== 'object') return null;
   return {
     statusId: Number(ev.statusId ?? ev?.status?.statusId ?? NaN),
@@ -65,7 +42,6 @@ const pickOverlay = (ev) => {
     gmt: ev.gmt ?? ev?.match?.gmt ?? null,
   };
 };
-
 const mergeOverlay = (m, o) => {
   if (!o) return m;
   return {
@@ -78,181 +54,44 @@ const mergeOverlay = (m, o) => {
   };
 };
 
-async function overlayFromJornadas(ids, scope, bust=false) {
+async function overlayFromEvent(id, scope, bust = false) {
   try {
     const qs = bust ? `?t=${Date.now()}` : '';
-    const opts = bust ? { headers:{'Cache-Control':'no-cache'} } : {};
-    const r = await fetch(`${BASE}/${scope}/agenda-jornadas.json${qs}`, opts);
-    if (!r.ok) return {};
-    const data = await r.json();
-    const events = data?.events || data || {};
-    const out = {};
-    for (const [key, ev] of Object.entries(events)) {
-      const id = extractTailId(key);
-      if (ids.includes(id)) out[id] = pickOverlay(ev);
-    }
-    return out;
-  } catch (e) {
-    console.log('[TeamSummary] jornadas overlay', e?.message || e);
-    return {};
-  }
-}
-
-async function overlayFromEvent(id, scope, bust=false) {
-  try {
-    const qs = bust ? `?t=${Date.now()}` : '';
-    const opts = bust ? { headers:{'Cache-Control':'no-cache'} } : {};
+    const opts = bust ? { headers: { 'Cache-Control': 'no-cache' } } : {};
     const r = await fetch(`${BASE}/${scope}/events/${id}.json${qs}`, opts);
     if (!r.ok) return {};
     const ev = await r.json();
-    return (
-      pickOverlay(ev) || {
-        statusId: Number(ev?.status?.statusId ?? NaN),
-        scoreStatus: ev?.scoreStatus ?? null,
-        scheduledStart: ev?.match?.scheduledStart ?? null,
-        gmt: ev?.match?.gmt ?? null,
-      }
-    );
-  } catch (e) {
-    console.log('[TeamSummary] event overlay', id, e?.message || e);
-    return {};
-  }
+    return pickOverlay(ev) || {
+      statusId: Number(ev?.status?.statusId ?? NaN),
+      scoreStatus: ev?.scoreStatus ?? null,
+      scheduledStart: ev?.match?.scheduledStart ?? null,
+      gmt: ev?.match?.gmt ?? null,
+    };
+  } catch { return {}; }
 }
 
-
-
-
-// Carga agenda del equipo (usa agendaMaM y cae a agenda-jornadas)
-async function fetchAgendaForTeam(teamId, scope, bust=false) {
-  const teamUrl = `${BASE}/${scope}/agendaMaM/agenda_${teamId}.json`;
-  const allUrl = `${BASE}/${scope}/agenda-jornadas.json`;
+async function fetchAgendaForTeam(teamId, scope, bust = false) {
+  const qs = bust ? `?t=${Date.now()}` : '';
+  const opts = bust ? { headers: { 'Cache-Control': 'no-cache' } } : {};
   try {
-    const qs = bust ? `?t=${Date.now()}` : '';
-    const opts = bust ? { headers:{'Cache-Control':'no-cache'} } : {};
-    const r = await fetch(`${teamUrl}${qs}`, opts);
-    if (r.ok) {
-      const j = await r.json();
-      return (j && j.events) || j || {};
-    }
+    const r = await fetch(`${BASE}/${scope}/agendaMaM/agenda_${teamId}.json${qs}`, opts);
+    if (r.ok) { const j = await r.json(); return (j && j.events) || j || {}; }
   } catch {}
   try {
-    const r2 = await fetch(`${allUrl}${qs}`, opts);
-    if (r.ok) {
-      const j = await r.json();
-      return (j && j.events) || j || {};
-    }
+    const r2 = await fetch(`${BASE}/${scope}/agenda-jornadas.json${qs}`, opts);
+    if (r2.ok) { const j = await r2.json(); return (j && j.events) || j || {}; }
   } catch {}
   return {};
 }
 
-/**
- * Construye un índice { matchId -> overlay } desde agenda-jornadas.json
- * Estructura tolerante: ya sea objeto {channelKey:{...}} o por rondas con "events".
- */
-const buildJornadasIndex = (data) => {
-  const map = new Map();
-
-  const tryAdd = (key, ev) => {
-    const mid = firstValidId(key, ev?.matchId, ev?.id, ev?.eventId, ev?.channel);
-    if (!isPosNum(mid)) return;
-    const ov = pickOverlay(ev);
-    if (!ov) return;
-    map.set(mid, ov);
-  };
-
-  if (!data) return map;
-
-  // Caso 1: objeto plano { "<channelKey>": { ...event } }
-  if (!Array.isArray(data) && typeof data === 'object') {
-    for (const [key, ev] of Object.entries(data)) {
-      // algunos JSON traen subnodos .events
-      if (ev && typeof ev === 'object' && ev.events && typeof ev.events === 'object') {
-        for (const [k2, ev2] of Object.entries(ev.events)) tryAdd(k2, ev2);
-      } else {
-        tryAdd(key, ev);
-      }
-    }
-    return map;
-  }
-
-  // Caso 2: arreglo por jornadas [{ title, events:{...} }, ...]
-  if (Array.isArray(data)) {
-    for (const round of data) {
-      const evs = round?.events;
-      if (evs && typeof evs === 'object') {
-        for (const [key, ev] of Object.entries(evs)) tryAdd(key, ev);
-      }
-    }
-  }
-
-  return map;
-};
-
-
-/**
- * Enriquecer los 5 últimos partidos con overlay híbrido.
- * 1) Si scope==='guatemala' intenta jornadas (un solo fetch).
- * 2) Para los que falten, pide events/{id}.json (máx. 5 fetch).
- */
-const enrichPastFiveHybrid = async (pastFive, scope = 'guatemala') => {
-  if (!Array.isArray(pastFive) || pastFive.length === 0) return pastFive;
-
-  const ids = pastFive.map((m) => Number(m?.matchId)).filter(isPosNum);
-  if (!ids.length) return pastFive;
-
-  let byId = {};
-  if (scope === 'guatemala') {
-    const jOver = await overlayFromJornadas(ids);
-    byId = { ...jOver };
-  }
-
-  // Fallback puntual para los que aún no tienen overlay
-  const missing = ids.filter((id) => byId[id] == null);
-  if (missing.length) {
-    const results = await Promise.all(missing.map((id) => overlayFromEvent(id, scope)));
-    missing.forEach((id, i) => {
-      if (results[i] && Object.keys(results[i]).length) byId[id] = results[i];
-    });
-  }
-
-  // Merge final
-  return pastFive.map((m) => mergeOverlay(m, byId[m.matchId]));
-};
-
-
-// Convierte item del feed a match para <Card/>
 function eventToMatch(key, ev, scope) {
   if (!ev || typeof ev !== 'object') return null;
-
-  // --- ID robusto ---
-  const extractNumTail = (v) => {
-    const m = String(v ?? '').match(/(\d{4,})$/);
-    return m ? Number(m[1]) : NaN;
-  };
-  const firstValidId = (...vals) => {
-    for (const v of vals) {
-      const n = typeof v === 'number' ? v : Number(v);
-      if (Number.isFinite(n) && n > 0) return n;
-      const tail = extractNumTail(v);
-      if (Number.isFinite(tail) && tail > 0) return tail;
-    }
-    return null;
-  };
-
-  // 1) Intentar con el key (ahora sí preservado)  2) campos comunes en el evento
-  const id = firstValidId(
-    key,
-    ev.matchId, ev.id, ev.eventId, ev.event_id,
-    ev?.match?.id, ev?.event?.id,
-    ev.channel, ev.channelKey, ev.key, ev.url, ev.href
-  );
-  if (!id) return null; // sin ID válido no pintamos Card (evita "matchId: 0")
-
+  const id = firstValidId(key, ev.matchId, ev.id, ev.eventId, ev.channel);
+  if (!id) return null;
   const t = ev.teams || {};
-  const out = {
+  return sanitizeForCard({
     channelKey: String(key ?? ''),
-    matchId: id,
-    scope,
+    matchId: id, scope,
     date: String(ev.date || '').replace(/-/g, ''),
     _dateAdj: String(ev.date || '').replace(/-/g, ''),
     scheduledStart: String(ev.scheduledStart || ev.scheduled || '').slice(0, 5),
@@ -266,59 +105,37 @@ function eventToMatch(key, ev, scope) {
     },
     score: ev.score ?? null,
     scoreStatus: ev.scoreStatus ?? null,
-  };
-  return sanitizeForCard(out);
+  });
 }
 
-
-
-// W/D/L + rival + marcador (para chips de forma)
 function resultChipFor(match, teamId) {
   const hid = String(match?.teams?.homeTeamId || '');
   const aid = String(match?.teams?.awayTeamId || '');
-
-  // intenta leer H/A desde varias fuentes
-  let hs = null, as = null;
-
-  // 1) scoreStatus { [teamId]: {score} }
+  let hs = null, as_ = null;
   if (match?.scoreStatus) {
-    const hs0 = match.scoreStatus[hid]?.score;
-    const as0 = match.scoreStatus[aid]?.score;
-    if (Number.isFinite(+hs0) && Number.isFinite(+as0)) { hs = +hs0; as = +as0; }
+    const h0 = match.scoreStatus[hid]?.score, a0 = match.scoreStatus[aid]?.score;
+    if (Number.isFinite(+h0) && Number.isFinite(+a0)) { hs = +h0; as_ = +a0; }
   }
-  // 2) "3-1" o "3:1"
   if (hs == null && typeof match?.score === 'string') {
-    const m = /^\s*(\d+)f\s*[-:]\s*(\d+)\s*$/.exec(match.score);
-    if (m) { hs = +m[1]; as = +m[2]; }
+    const m = /^\s*(\d+)f?\s*[-:]\s*(\d+)\s*$/.exec(match.score);
+    if (m) { hs = +m[1]; as_ = +m[2]; }
   }
-  // 3) objeto scoreHA {H,A}
-  if (hs == null && match?.scoreHA && Number.isFinite(+match.scoreHA.H) && Number.isFinite(+match.scoreHA.A)) {
-    hs = +match.scoreHA.H; as = +match.scoreHA.A;
-  }
-
+  if (hs == null && match?.scoreHA) { hs = +match.scoreHA.H; as_ = +match.scoreHA.A; }
   const isHome = String(teamId) === hid;
-  const oppId   = isHome ? match?.teams?.awayTeamId : match?.teams?.homeTeamId;
+  const oppId   = isHome ? match?.teams?.awayTeamId  : match?.teams?.homeTeamId;
   const oppName = isHome ? match?.teams?.awayTeamName : match?.teams?.homeTeamName;
-
   let res = null, scoreStr = '—';
-  if (hs != null && as != null) {
-    const diff = isHome ? (hs - as) : (as - hs);
+  if (hs != null && as_ != null) {
+    const diff = isHome ? (hs - as_) : (as_ - hs);
     res = diff > 0 ? 'W' : (diff === 0 ? 'D' : 'L');
-    scoreStr = isHome ? `${hs} - ${as}` : `${as} - ${hs}`;
+    scoreStr = isHome ? `${hs}-${as_}` : `${as_}-${hs}`;
   }
-  // res: W/D/L/NULL (NULL = desconocido → gris)
   return { res, scoreStr, oppId, oppName: changeName(oppName), matchId: match.matchId };
 }
 
-
-// Calcula goleador(es) del equipo según el scope.
-// - GUATEMALA: usa CUSTOM/players (goleadores.persona)
-// - OTROS scopes: lee statsCenter/teams/{teamId}.json y toma j.players[*].summary.goals.qty
 async function fetchTopScorers(teamId, scope) {
   const teamStr = String(teamId);
   const scopeSafe = String(scope || 'guatemala').toLowerCase();
-
-  // === Guatemala → igual que siempre ===
   if (scopeSafe === 'guatemala') {
     if (!CUSTOM) return [];
     try {
@@ -326,787 +143,433 @@ async function fetchTopScorers(teamId, scope) {
       if (!r.ok) return [];
       const j = await r.json();
       const list = Array.isArray(j?.goleadores?.persona) ? j.goleadores.persona : [];
-      const rows = list.map((p) => ({
+      const rows = list.map(p => ({
         playerId: Number(p?.id?.[0] ?? p?.id ?? 0),
         name: bestPersonNameFromObj(p),
         goals: Number(p?.goles?.[0] ?? p?.goles ?? 0),
         teamId: String(p?.equipo?.[0]?.id?.[0] ?? p?.equipo?.id ?? ''),
       })).filter(x => x.playerId && x.teamId === teamStr && x.goals > 0);
-
       if (!rows.length) return [];
-      rows.sort((a,b)=> b.goals - a.goals || a.name.localeCompare(b.name));
-      const maxG = rows[0].goals;
-      return rows.filter(x => x.goals === maxG);
+      rows.sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name));
+      return rows.filter(x => x.goals === rows[0].goals);
     } catch { return []; }
   }
-
-  // === CONCACAF / otros scopes ===
-  const base = String(BASE || '').replace(/\/+$/, '');
-  const url = `${base}/${scopeSafe}/statsCenter/teams/${teamStr}.json`;
-
   try {
-    const r = await fetch(`${url}?t=${Date.now()}`, { headers: { 'Cache-Control': 'no-cache' } });
+    const r = await fetch(`${BASE}/${scopeSafe}/statsCenter/teams/${teamStr}.json?t=${Date.now()}`, { headers: { 'Cache-Control': 'no-cache' } });
     if (!r.ok) return [];
-
     const j = await r.json();
-
-    // --- norma: los jugadores vienen en j.players (obj con keys pid) ---
-    let entries = [];
-    if (j && typeof j === 'object') {
-      if (j.players && typeof j.players === 'object') {
-        entries = Object.entries(j.players).map(([pid, obj]) => ({ pid, ...obj }));
-      } else {
-        // fallback por si alguna vez el feed viene como { [pid]: {...} } en la raíz
-        const maybePidShape = Object.values(j).every(v => v && typeof v === 'object' && ('info' in v || 'summary' in v));
-        if (maybePidShape) {
-          entries = Object.entries(j).map(([pid, obj]) => ({ pid, ...obj }));
-        }
-      }
-    }
-    // último fallback: si fuera array
-    if (!entries.length && Array.isArray(j)) {
-      entries = j;
-    }
-
+    const entries = j?.players ? Object.entries(j.players).map(([pid, obj]) => ({ pid, ...obj })) : [];
     const rows = entries.map(p => {
       const pid = Number(p?.pid ?? p?.playerId ?? p?.id);
-      const goals = Number(
-        (p?.summary?.goals && (p.summary.goals.qty ?? p.summary.goals)) ?? 0
-      );
+      const goals = Number((p?.summary?.goals && (p.summary.goals.qty ?? p.summary.goals)) ?? 0);
       const n = p?.info?.name || {};
-      const name = (n.nick && String(n.nick).trim())
-        || [n.first, n.middle, n.last].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
-      const tid = String(p?.info?.teamId ?? p?.teamId ?? teamStr);
-      return { playerId: pid, name, goals, teamId: tid };
+      const name = (n.nick && String(n.nick).trim()) || [n.first, n.last].filter(Boolean).join(' ').trim();
+      return { playerId: pid, name, goals, teamId: String(p?.info?.teamId ?? teamStr) };
     }).filter(x => x.playerId && x.teamId === teamStr && x.goals > 0);
-
     if (!rows.length) return [];
-    rows.sort((a,b)=> b.goals - a.goals || a.name.localeCompare(b.name));
-    const maxG = rows[0].goals;
-    return rows.filter(x => x.goals === maxG);
-  } catch {
-    return [];
-  }
+    rows.sort((a, b) => b.goals - a.goals);
+    return rows.filter(x => x.goals === rows[0].goals);
+  } catch { return []; }
 }
 
-/* ============================ Componente ============================ */
+/* ══════════════════════════════════════════════════════════
+   SECTION HEADER — consistente con el resto de la app
+══════════════════════════════════════════════════════════ */
+function SecHeader({ title, actionLabel, onAction, colors }) {
+  return (
+    <View style={S.secHeader}>
+      <View style={[S.secBar, { backgroundColor: BRAND.primary }]} />
+      <Text style={[S.secTitle, { color: colors.text }]}>{title}</Text>
+      {onAction && (
+        <TouchableOpacity onPress={onAction} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={[S.secLink, { color: BRAND.primary }]}>{actionLabel || 'Ver más ›'}</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════
+   TEAMSUMMARY
+══════════════════════════════════════════════════════════ */
 function TeamSummary({ teamId, scope, navigation, standings, onOpenPartidos, theme }) {
   const { colors } = theme;
   const isDark = theme.mode === 'dark';
 
-  const [nextMatch, setNextMatch] = React.useState(null);
-  const [lastMatch, setLastMatch] = React.useState(null);
-  const [recentFive, setRecentFive] = React.useState([]); // [{res,scoreStr,oppId,oppName,matchId}]
-  const [topScorers, setTopScorers] = React.useState([]); // empatados en el máximo
-  const [topRated, setTopRated] = React.useState([]); // ← nuevos “destacados por rating”
-  
+  const [nextMatch,  setNextMatch]  = React.useState(null);
+  const [lastMatch,  setLastMatch]  = React.useState(null);
+  const [recentFive, setRecentFive] = React.useState([]);
+  const [topScorers, setTopScorers] = React.useState([]);
+  const [topRated,   setTopRated]   = React.useState([]);
+
   const teamIdNum = Array.isArray(teamId) ? Number(teamId[0]) : Number(teamId);
 
+  /* ── Tabla de posiciones ── */
+  const toNum      = v => { const n = parseInt(Array.isArray(v) ? v[0] : v, 10); return Number.isFinite(n) ? n : 0; };
+  const toMaybeNum = v => { const raw = Array.isArray(v) ? v[0] : v; if (raw == null || raw === '') return undefined; const n = parseInt(raw, 10); return Number.isFinite(n) ? n : undefined; };
+  const pickNum      = (row, keys) => { for (const k of keys) { if (row?.[k] != null) return toNum(row[k]); } return 0; };
+  const pickMaybeNum = (row, keys) => { for (const k of keys) { if (row?.[k] != null) return toMaybeNum(row[k]); } return undefined; };
+  const getTeamId    = row => String(row?.teamId ?? row?.id?.[0] ?? row?.team?.id ?? row?.team_id ?? row?.equipoId ?? '');
+  const computePts   = row => { const f = pickMaybeNum(row, ['puntosactual','puntos','pts']); if (f != null) return f; return pickNum(row,['ganadosactual','ganados','g'])*3 + pickNum(row,['empatadosactual','empatados','e']); };
 
-const goPlayer = React.useCallback((pid) => {
-  const id = Number(pid);
-  if (!navigation?.navigate || !Number.isFinite(id)) return;
-  // 👇 Cambia 'PlayerScreen' por el nombre real de tu ruta si es distinto (ej. 'Player')
-  navigation.navigate('PlayerScreen', { playerId: id, teamId, scope });
-}, [navigation, teamId, scope]);
+  const teamRow = React.useMemo(() => {
+    if (!Array.isArray(standings) || !standings.length) return null;
+    const idx = standings.findIndex(r => getTeamId(r) === String(teamId));
+    if (idx === -1) return null;
+    const src = standings[idx];
+    return {
+      position: idx + 1,
+      points:   computePts(src),
+      played:   pickNum(src, ['jugadosactual','jugados','j']),
+      wins:     pickNum(src, ['ganadosactual','ganados','g']),
+      draws:    pickNum(src, ['empatadosactual','empatados','e']),
+      losses:   pickNum(src, ['perdidosactual','perdidos','p']),
+      goalDiff: pickNum(src, ['difgolactual','diferencia','dif']),
+      goalsFor:     pickMaybeNum(src, ['golesfavoractual','golesfavor','gf']),
+      goalsAgainst: pickMaybeNum(src, ['golescontraactual','golescontra','gc']),
+    };
+  }, [standings, teamId]);
 
+  const totalTeams = Array.isArray(standings) ? standings.length : 12;
+  const pos = Number(teamRow?.position || 0);
+  const scopeSafe = String(scope || 'guatemala').toLowerCase();
+  const isConcacafFinal = scopeSafe === 'concacaf' && totalTeams === 4;
 
-  // helpers para leer números de "posiciones"
-const numFrom = (row, key) => {
-  const v = row?.[key];
-  const raw = Array.isArray(v) ? v[0] : v;
-  const n = parseInt(raw, 10);
-  return Number.isFinite(n) ? n : 0;
-};
-const maybeNumFrom = (row, key) => {
-  const v = row?.[key];
-  const raw = Array.isArray(v) ? v[0] : v;
-  if (raw == null || raw === '') return undefined;
-  const n = parseInt(raw, 10);
-  return Number.isFinite(n) ? n : undefined;
-};
-
-const extractTeamId = (row) =>
-  String(
-    row?.teamId ??
-    row?.id?.[0] ??
-    row?.team?.id ??
-    row?.team_id ??
-    row?.equipoId ??
-    ''
-  );
-
-// ===== Helpers robustos para leer la tabla de posiciones =====
-
-// Convierte a número desde string o array de 1 elemento. Si falla → 0.
-const toNum = (v) => {
-  const raw = Array.isArray(v) ? v[0] : v;
-  const n = parseInt(raw, 10);
-  return Number.isFinite(n) ? n : 0;
-};
-// Igual que toNum pero si falta devuelve undefined (para mostrar “-”)
-const toMaybeNum = (v) => {
-  const raw = Array.isArray(v) ? v[0] : v;
-  if (raw == null || raw === '') return undefined;
-  const n = parseInt(raw, 10);
-  return Number.isFinite(n) ? n : undefined;
-};
-
-// Lee el primer campo existente de una lista de posibles claves
-const pickNum = (row, keys) => {
-  for (const k of keys) {
-    if (row && row[k] != null) return toNum(row[k]);
-  }
-  return 0;
-};
-const pickMaybeNum = (row, keys) => {
-  for (const k of keys) {
-    if (row && row[k] != null) return toMaybeNum(row[k]);
-  }
-  return undefined;
-};
-
-// Todas las variantes de id de equipo que hemos visto
-const getTeamId = (row) =>
-  String(
-    row?.teamId ??
-    row?.id?.[0] ??
-    row?.team?.id ??
-    row?.team_id ??
-    row?.equipoId ??
-    ''
-  );
-
-// Puntos: si viene “puntosactual/puntos”, úsalo; si no, 3*G + E
-const computePoints = (row) => {
-  const fromField = pickMaybeNum(row, ['puntosactual', 'puntos', 'pts']);
-  if (fromField != null) return fromField;
-  const w = pickNum(row, ['ganadosactual', 'ganados', 'g']);
-  const d = pickNum(row, ['empatadosactual', 'empatados', 'e']);
-  return w * 3 + d;
-};
-
-// ===== teamRow a partir de standings =====
-const teamRow = React.useMemo(() => {
-  if (!Array.isArray(standings) || !standings.length) return null;
-
-  const wanted = String(teamId);
-  const idx = standings.findIndex(r => getTeamId(r) === wanted);
-  if (idx === -1) return null;
-
-  const src = standings[idx];
-
-  return {
-    teamId:   getTeamId(src),
-    position: idx + 1, // el array ya viene ordenado por puesto
-
-    points: computePoints(src),
-    played: pickNum(src, ['jugadosactual', 'jugados', 'j']),
-    wins:   pickNum(src, ['ganadosactual', 'ganados', 'g']),
-    draws:  pickNum(src, ['empatadosactual', 'empatados', 'e']),
-    losses: pickNum(src, ['perdidosactual', 'perdidos', 'p']),
-    goalDiff: pickNum(src, ['difgolactual', 'diferencia', 'dif']),
-
-    // Muchos feeds no traen GF/GC → quedarán “-”
-    goalsFor:     pickMaybeNum(src, ['golesfavoractual', 'golesfavor', 'gf']),
-    goalsAgainst: pickMaybeNum(src, ['golescontraactual', 'golescontra', 'gc']),
-  };
-}, [standings, teamId]);
-
-// Colores del badge según posición
-const totalTeams = Array.isArray(standings) ? standings.length : 12;
-const pos = Number(teamRow?.position || 0);
-const scopeSafe = String(scope || 'guatemala').toLowerCase();
-
-// ➜ Ronda Final CONCACAF: 4 equipos → 1º verde, resto blanco
-const isConcacafFinal = (scopeSafe === 'concacaf' && totalTeams === 4);
-
-let badgeBg = '#16a34a';   // verde
-let badgeTxt = '#fff';
-let badgeBorder = null;
-
-if (isConcacafFinal) {
-  if (pos === 1) {
-    badgeBg = '#16a34a';  // verde 1er lugar
-    badgeTxt = '#fff';
-    badgeBorder = null;
+  let badgeBg = '#16a34a', badgeTxt = '#fff', badgeBorder = null;
+  if (isConcacafFinal) {
+    if (pos !== 1) { badgeBg = isDark ? '#2A2D3E' : '#F3F4F6'; badgeTxt = isDark ? '#fff' : '#111'; badgeBorder = isDark ? null : { borderWidth: 1, borderColor: '#E5E7EB' }; }
+  } else if (totalTeams === 12) {
+    if (pos > 10)      { badgeBg = '#DC2626'; badgeTxt = '#fff'; }
+    else if (pos > 8)  { badgeBg = isDark ? '#2A2D3E' : '#F3F4F6'; badgeTxt = isDark ? '#fff' : '#111'; badgeBorder = isDark ? null : { borderWidth: 1, borderColor: '#E5E7EB' }; }
   } else {
-    badgeBg = '#fff';     // blanco para 2º-4º
-    badgeTxt = '#0f172a';
-    badgeBorder = { borderWidth: 1, borderColor: '#cbd5e1' };
+    if (pos > totalTeams - 2)     { badgeBg = '#DC2626'; badgeTxt = '#fff'; }
+    else if (pos > totalTeams - 4){ badgeBg = isDark ? '#2A2D3E' : '#F3F4F6'; badgeTxt = isDark ? '#fff' : '#111'; badgeBorder = isDark ? null : { borderWidth: 1, borderColor: '#E5E7EB' }; }
   }
-} else {
-  // lógica general existente
-  if (totalTeams === 12) {
-    if (pos <= 8) {          // verde
-      badgeBg = '#16a34a'; badgeTxt = '#fff';
-    } else if (pos <= 10) {  // neutro (blanco)
-      badgeBg = '#fff'; badgeTxt = '#0f172a'; badgeBorder = { borderWidth: 1, borderColor: '#cbd5e1' };
-    } else {                 // rojo
-      badgeBg = '#ef4444'; badgeTxt = '#fff';
-    }
-  } else {
-    if (pos > totalTeams - 2) {            // últimos 2 → rojo
-      badgeBg = '#ef4444'; badgeTxt = '#fff';
-    } else if (pos > totalTeams - 4) {     // penúltimos 2 → blanco
-      badgeBg = '#fff'; badgeTxt = '#0f172a'; badgeBorder = { borderWidth: 1, borderColor: '#cbd5e1' };
-    } else {                               // resto → verde
-      badgeBg = '#16a34a'; badgeTxt = '#fff';
-    }
-  }
-}
 
-
-
-React.useEffect(() => {
-  console.log('[TeamSummary] teamRow =', teamRow);
-}, [teamRow]);
-
+  /* ── Carga de datos ── */
   React.useEffect(() => {
-  let alive = true;
-
-  (async () => {
-    // HOIST para usar después
-    let next = null;
-    let last = null;
-    let last5 = [];
-
-    // ===== 1) AGENDA: forma, próximo, último =====
-    try {
-      const evsObj = await fetchAgendaForTeam(teamId, scope);
-
-      // Preservar keys si viene como objeto
-      const keyedList = Array.isArray(evsObj)
-        ? evsObj.map((row, idx) => ({
-            key: row?.channel || row?.channelKey || row?.id || row?.key || `k#${idx}`,
-            row,
-          }))
-        : Object.entries(evsObj || {}).map(([key, row]) => ({ key, row }));
-
-      const matches = keyedList
-        .map(({ key, row }, idx) => eventToMatch(key || `k#${idx}`, row, scope))
-        .filter(Boolean)
-        .sort((a, b) => {
-          const ka = `${a._dateAdj}${a.scheduledStart}${String(a.matchId).padStart(9, '0')}`;
-          const kb = `${b._dateAdj}${b.scheduledStart}${String(b.matchId).padStart(9, '0')}`;
-          return ka.localeCompare(kb);
-        });
-
-      const future = matches.filter(m => FUTURE.has(Number(m.statusId)));
-      const past   = matches.filter(m => !FUTURE.has(Number(m.statusId)));
-
-      next = future.length ? future[0] : null;
-      last = past.length   ? past[past.length - 1] : null;
-
-      const pastDesc = past.slice().reverse();
-      const pastFiveMatches = pastDesc.slice(0, 5);
-
-      // === evitar segunda descarga de agenda-jornadas.json ===
-      const idsNeeded = pastFiveMatches
-        .map(m => Number(m.matchId))
-        .filter(Number.isFinite);
-
-      const byId = {};
-      const scan = Array.isArray(evsObj) ? evsObj : Object.values(evsObj || {});
-      for (const raw of scan) {
-        const id = Number(raw?.matchId ?? raw?.id ?? raw?.eventId ?? raw?.eid);
-        if (!Number.isFinite(id) || !idsNeeded.includes(id)) continue;
-
-        const ov = {
-          statusId: Number(raw?.statusId ?? raw?.status?.id),
-          homeScore: Number(raw?.homeScore ?? raw?.scores?.home ?? raw?.result?.homeGoals),
-          awayScore: Number(raw?.awayScore ?? raw?.scores?.away ?? raw?.result?.awayGoals),
-          scheduledStart: raw?.scheduledStart ?? raw?.hhmm ?? null,
-          gmt: raw?.gmt ?? null,
-        };
-
-        if (
-          Number.isFinite(ov.statusId) ||
-          Number.isFinite(ov.homeScore) ||
-          Number.isFinite(ov.awayScore)
-        ) {
-          byId[id] = ov;
-        }
-      }
-
-      // Para los que falten, pedir evento puntual (máx 5)
-      const missing = idsNeeded.filter(id => byId[id] == null).slice(0, 5);
-      if (missing.length) {
-        const results = await Promise.all(
-          missing.map(id => overlayFromEvent(id, scope).catch(() => ({})))
-        );
-        missing.forEach((id, i) => {
-          const ov = results[i];
-          if (ov && Object.keys(ov).length) byId[id] = ov;
-        });
-      }
-
-      const enrichedFive = pastFiveMatches.map(m => {
-        const ov = byId[m.matchId];
-        return ov ? { ...m, ...mergeOverlay(m, ov) } : m;
-      });
-      last5 = enrichedFive.map(m => resultChipFor(m, teamId));
-
-      if (alive) {
-        setNextMatch(next);
-        setLastMatch(last);
-        setRecentFive(last5); // ← solo una vez
-      }
-    } catch {}
-
-    // ===== 2) GOLEADORES (temporada) =====
-    try {
-      const tops = await fetchTopScorers(teamId, scope);
-      if (alive) setTopScorers(tops);
-    } catch {}
-
-    // ===== 3) DESTACADOS POR RATING (último partido) =====
-    try {
-      const candidate =
-        (last && (last.matchId ?? last.id)) ??
-        (next && (next.matchId ?? next.id));
-      const lastId = Number(candidate);
-
-      console.log('[TeamSummary] last:', last, 'next:', next, 'lastId:', lastId);
-
-      if (Number.isFinite(lastId)) {
-        const scopeSafe = String(scope || 'guatemala').toLowerCase();
-        const base = String(BASE || '').replace(/\/+$/,'');
-        const url = `${base}/${scopeSafe}/events/${lastId}.json?t=${Date.now()}`;
-
-        console.log('[TeamSummary] URL evento para ratings:', url);
-
-        const resp = await fetch(url, { headers: { 'Cache-Control': 'no-cache' } });
-        if (resp.ok) {
-          const j = await resp.json();
-
-          const toArray = (x) =>
-            Array.isArray(x) ? x :
-            (x && typeof x === 'object'
-              ? Object.entries(x).map(([pid,p]) => ({ pid, ...p }))
-              : []);
-
-          const pools = [j?.players, j?.lineups?.players, j?.stats?.players];
-          let rows = [];
-          for (const src of pools) {
-            const arr = toArray(src);
-            if (arr.length) { rows = arr; break; }
-          }
-
-          const teamIdStr = String(Array.isArray(teamId) ? teamId[0] : teamId);
-
-          const norm = rows.map(p => {
-            const playerId = Number(p?.playerId ?? p?.id ?? p?.pid ?? p?.personId ?? p?.personaId);
-            const tId = String(p?.teamId ?? p?.team?.id ?? p?.team_id ?? p?.equipoId ?? p?.equipo?.id ?? '');
-            const name =
-              p?.name?.shortName || p?.name?.nick ||
-              [p?.name?.first, p?.name?.last].filter(Boolean).join(' ') ||
-              p?.name || p?.fullName || p?.shortName || '';
-            const rating = Number(
-              p?.rating ?? p?.nota ?? p?.calificacion ?? p?.score ??
-              (p?.ratings && (p?.ratings?.whoscored ?? p?.ratings?.sofascore))
-            );
-            return { playerId, teamIdFromPlayer: tId, name, rating };
+    let alive = true;
+    (async () => {
+      // 1. Agenda
+      try {
+        const evsObj = await fetchAgendaForTeam(teamId, scope);
+        const keyedList = Array.isArray(evsObj)
+          ? evsObj.map((row, idx) => ({ key: row?.channel || `k#${idx}`, row }))
+          : Object.entries(evsObj || {}).map(([key, row]) => ({ key, row }));
+        const matches = keyedList
+          .map(({ key, row }, idx) => eventToMatch(key || `k#${idx}`, row, scope))
+          .filter(Boolean)
+          .sort((a, b) => {
+            const ka = `${a._dateAdj}${a.scheduledStart}${String(a.matchId).padStart(9, '0')}`;
+            const kb = `${b._dateAdj}${b.scheduledStart}${String(b.matchId).padStart(9, '0')}`;
+            return ka.localeCompare(kb);
           });
-
-          const mine = norm
-            .filter(x => x.teamIdFromPlayer && x.teamIdFromPlayer == teamIdStr && Number.isFinite(x.rating) && x.rating > 0)
-            .sort((a,b) => (b.rating - a.rating) || a.name.localeCompare(b.name));
-
-          if (alive) setTopRated(mine.slice(0, 3));
-          console.log('[TeamSummary] topRated →', mine.slice(0, 3));
-        } else {
-          console.log('[TeamSummary] Evento no encontrado o error HTTP:', resp.status);
+        const future = matches.filter(m => FUTURE.has(Number(m.statusId)));
+        const past   = matches.filter(m => !FUTURE.has(Number(m.statusId)));
+        const next = future.length ? future[0] : null;
+        const last = past.length   ? past[past.length - 1] : null;
+        const pastFiveMatches = past.slice().reverse().slice(0, 5);
+        const idsNeeded = pastFiveMatches.map(m => Number(m.matchId)).filter(Number.isFinite);
+        const byId = {};
+        const scan = Array.isArray(evsObj) ? evsObj : Object.values(evsObj || {});
+        for (const raw of scan) {
+          const id = Number(raw?.matchId ?? raw?.id ?? raw?.eventId);
+          if (!Number.isFinite(id) || !idsNeeded.includes(id)) continue;
+          const ov = {
+            statusId: Number(raw?.statusId ?? raw?.status?.id),
+            homeScore: Number(raw?.homeScore ?? raw?.scores?.home ?? raw?.result?.homeGoals),
+            awayScore: Number(raw?.awayScore ?? raw?.scores?.away ?? raw?.result?.awayGoals),
+            scheduledStart: raw?.scheduledStart ?? null, gmt: raw?.gmt ?? null,
+          };
+          if (Number.isFinite(ov.statusId) || Number.isFinite(ov.homeScore) || Number.isFinite(ov.awayScore)) byId[id] = ov;
         }
-      } else {
-        console.log('[TeamSummary] Sin lastId válido → no ratings');
-      }
-    } catch (err) {
-      console.log('[TeamSummary] Error obteniendo ratings:', err);
-    }
-    // ===== fin ratings =====
+        const missing = idsNeeded.filter(id => byId[id] == null).slice(0, 5);
+        if (missing.length) {
+          const results = await Promise.all(missing.map(id => overlayFromEvent(id, scope).catch(() => ({}))));
+          missing.forEach((id, i) => { if (results[i] && Object.keys(results[i]).length) byId[id] = results[i]; });
+        }
+        const enriched = pastFiveMatches.map(m => { const ov = byId[m.matchId]; return ov ? mergeOverlay(m, ov) : m; });
+        const last5 = enriched.map(m => resultChipFor(m, teamId));
+        if (alive) { setNextMatch(next); setLastMatch(last); setRecentFive(last5); }
+      } catch {}
 
-  })();
+      // 2. Goleadores
+      try { const tops = await fetchTopScorers(teamId, scope); if (alive) setTopScorers(tops); } catch {}
 
-  return () => { alive = false; };
-}, [teamId, scope]);
+      // 3. Ratings
+      try {
+        const candidate = lastMatch?.matchId ?? nextMatch?.matchId;
+        const lastId = Number(candidate);
+        if (Number.isFinite(lastId)) {
+          const resp = await fetch(`${BASE}/${scopeSafe}/events/${lastId}.json?t=${Date.now()}`, { headers: { 'Cache-Control': 'no-cache' } });
+          if (resp.ok) {
+            const j = await resp.json();
+            const toArray = x => Array.isArray(x) ? x : (x && typeof x === 'object' ? Object.entries(x).map(([pid, p]) => ({ pid, ...p })) : []);
+            let rows = [];
+            for (const src of [j?.players, j?.lineups?.players, j?.stats?.players]) { const arr = toArray(src); if (arr.length) { rows = arr; break; } }
+            const teamIdStr = String(Array.isArray(teamId) ? teamId[0] : teamId);
+            const norm = rows.map(p => ({
+              playerId: Number(p?.playerId ?? p?.id ?? p?.pid ?? p?.personId),
+              teamIdFromPlayer: String(p?.teamId ?? p?.team?.id ?? p?.equipoId ?? ''),
+              name: p?.name?.shortName || p?.name?.nick || [p?.name?.first, p?.name?.last].filter(Boolean).join(' ') || '',
+              rating: Number(p?.rating ?? p?.nota ?? p?.calificacion ?? p?.score ?? 0),
+            })).filter(x => x.teamIdFromPlayer == teamIdStr && Number.isFinite(x.rating) && x.rating > 0)
+              .sort((a, b) => b.rating - a.rating);
+            if (alive) setTopRated(norm.slice(0, 3));
+          }
+        }
+      } catch {}
+    })();
+    return () => { alive = false; };
+  }, [teamId, scope]);
 
-
-
-  
-  // UI helpers
-// UI helpers
-const renderFormChips = (keyPrefix = 'f') => (
-  <View style={styles.formRow}>
-    {recentFive.map((g, idx) => {
-      const bg =
-        g.res === 'W' ? '#22c55e' :
-        g.res === 'D' ? '#94a3b8' :
-        g.res === 'L' ? '#ef4444' :
-        '#cbd5e1';
-
-      const key = [
-        keyPrefix,
-        g.matchId ?? 'm',
-        g.oppId ?? 'o',
-        g.scoreStr ?? '-',
-        idx
-      ].join('-');
-
-      const onOpenMatch = () => {
-        const rawId = g?.matchId;
-        const idNum = Number(rawId);
-        if (!Number.isFinite(idNum) || idNum <= 0) return;
-        const channel = String(scope || 'guatemala').toLowerCase();
-        navigation?.push?.('Match', { matchId: String(idNum), channel });
-      };
-
-      return (
-        <TouchableOpacity
-          key={key}
-          onPress={onOpenMatch}
-          activeOpacity={0.8}
-          style={styles.formChip}
-        >
-          <View style={[styles.formScoreBadge, { backgroundColor: bg }]}>
-            <Text style={styles.formChipScore}>{g.scoreStr}</Text>
-          </View>
-          <LogoImg teamId={g.oppId} size={28} style={{ marginTop: 6 }} />
-        </TouchableOpacity>
-      );
-    })}
-  </View>
-);
-
-
-
-
-  const mainScorer = topScorers[0];
+  const cardBg  = colors.cardBg;
+  const border  = colors.cardBorder;
+  const mainScorer   = topScorers[0];
   const otherScorers = topScorers.slice(1);
 
+  const TABLE_COLS = [
+    { label: 'Pos',  value: teamRow?.position },
+    { label: 'Pts',  value: teamRow?.points },
+    { label: 'PJ',   value: teamRow?.played },
+    { label: 'G',    value: teamRow?.wins },
+    { label: 'E',    value: teamRow?.draws },
+    { label: 'P',    value: teamRow?.losses },
+    { label: 'GF',   value: teamRow?.goalsFor },
+    { label: 'GC',   value: teamRow?.goalsAgainst },
+    { label: 'Dif',  value: teamRow?.goalDiff },
+  ];
+
   return (
-    <View style={{ paddingHorizontal: 0, gap: 12 }}>
-      
-      {/* 1) Partido siguiente (tarjeta única) */}
-{nextMatch ? (
-  <View style={[styles.summaryCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
+    <View style={{ gap: 10 }}>
 
-    <Text style={[styles.summaryTitle, { color: colors.text }]}>Siguiente partido</Text>
+      {/* ══ PRÓXIMO PARTIDO ══ */}
+      {nextMatch && (
+        <View style={[S.card, { backgroundColor: cardBg, borderColor: border }]}>
+          <SecHeader title="Próximo partido" colors={colors} />
+          <Card
+            match={nextMatch}
+            showTourneyBadge={false}
+            tourneyText=""
+            onPress={() => {
+              const idNum = Number(nextMatch?.matchId);
+              if (!Number.isFinite(idNum) || idNum <= 0) return;
+              navigation?.push?.('Match', {
+                matchId: String(idNum),
+                channel: nextMatch?.scope || scope || 'guatemala',
+                pre: {
+                  id: String(idNum),
+                  teams: {
+                    homeTeamId:   String(nextMatch?.teams?.homeTeamId ?? ''),
+                    awayTeamId:   String(nextMatch?.teams?.awayTeamId ?? ''),
+                    homeTeamName: nextMatch?.teams?.homeTeamName ?? '',
+                    awayTeamName: nextMatch?.teams?.awayTeamName ?? '',
+                  },
+                  date: nextMatch?._dateAdj || nextMatch?.date || null,
+                  scheduledStart: nextMatch?.scheduledStart ?? null,
+                  gmt: nextMatch?.gmt ?? null,
+                },
+              });
+            }}
+          />
+        </View>
+      )}
 
-    <View style={{ marginTop: 8 }}>
-      <Card
-        match={nextMatch}
-        showTourneyBadge={false}
-        tourneyText=""
-        variant="flat"               // sin borde ni fondo (usa el de summaryCard)
-        style={{ marginTop: 0 }}
-        onPress={() => {
-          // Guardas para asegurar navegación correcta
-          const rawId = nextMatch?.matchId;
-          const idNum = Number(rawId);
-          if (!Number.isFinite(idNum) || idNum <= 0) {
-            console.log('[TeamSummary] matchId inválido:', rawId, 'nextMatch:', nextMatch);
-            return; // evita abrir Match si el id no es válido
-          }
-
-          const channel =
-            nextMatch?.scope || scope || 'guatemala'; // fallback seguro como en Calendar
-
-          // Log útil mientras pruebas (puedes quitarlo luego)
-console.log('[TS] abrir Match →', nextMatch.matchId, nextMatch.scope || scope || 'guatemala');
-
-          navigation?.push?.('Match', {
-            matchId: String(idNum),
-            channel,
-            pre: {
-              id: String(idNum),
-              teams: {
-                homeTeamId: String(nextMatch?.teams?.homeTeamId ?? ''),
-                awayTeamId: String(nextMatch?.teams?.awayTeamId ?? ''),
-                homeTeamName: nextMatch?.teams?.homeTeamName ?? '',
-                awayTeamName: nextMatch?.teams?.awayTeamName ?? '',
-              },
-              date: nextMatch?._dateAdj || nextMatch?.date || null,
-              scheduledStart: nextMatch?.scheduledStart ?? null,
-              gmt: nextMatch?.gmt ?? null,
-            },
-          });
-        }}
-      />
-    </View>
-  </View>
-) : null}
-
-
-
-      {/* 3) Últimos partidos (atajo → Partidos > Resultados) */}
-{!!recentFive.length && (
-  <View style={[styles.summaryCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-
-    <View style={styles.summaryHeaderRow}>
-      <Text style={[styles.summaryTitle, { color: colors.text }]}>Últimos partidos</Text>
-
-      {/* 👉 solo la flechita navega a la pestaña de Resultados */}
-      <TouchableOpacity
-        onPress={() => onOpenPartidos && onOpenPartidos()}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.linkArrow, { color: colors.accent }]}>›</Text>
-
-      </TouchableOpacity>
-    </View>
-
-    {renderFormChips('last')}
-  </View>
-)}
-
-
-      {/* 4) Jugador destacado (máximo goleador) */}
-      {mainScorer && (
-  <View style={[styles.summaryCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-
-    <Text style={[styles.summaryTitle, { color: colors.text }]}>Goleador</Text>
-
-
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={() =>
-        navigation.navigate('Player', {
-          playerId: Number(mainScorer.playerId),
-          teamId: teamIdNum,
-          scope,
-        })
-      }
-      style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 10 }}
-    >
-      <Avatar id={mainScorer.playerId} size={80} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontSize: 15, fontWeight: '900', color: colors.text }}> {mainScorer.name}</Text>
-        <Text style={{ color: colors.text }}> Goles: {mainScorer.goals}</Text>
-
-
-        {!!otherScorers.length && (
-          <>
-            <Text style={{ color: colors.text, marginTop: 4, fontSize: 12 }}> Otros goleadores ({mainScorer.goals}):</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 4 }}>
-              {otherScorers.map((s) => (
-                <Text
-                  key={s.playerId || s.name}
-                  onPress={() =>
-                    navigation.navigate('Player', {
-                      playerId: Number(s.playerId),
-                      teamId: teamIdNum,
-                      scope,
-                    })
-                  }
-                  style={{ color: colors.text, fontSize: 12, textDecorationLine: 'underline', marginRight: 8, marginBottom: 4,}}
+      {/* ══ ÚLTIMOS PARTIDOS — chips de forma ══ */}
+      {recentFive.length > 0 && (
+        <View style={[S.card, { backgroundColor: cardBg, borderColor: border }]}>
+          <SecHeader
+            title="Últimos partidos"
+            actionLabel="Ver todos ›"
+            onAction={onOpenPartidos}
+            colors={colors}
+          />
+          <View style={S.formRow}>
+            {recentFive.map((g, idx) => {
+              const bg = g.res === 'W' ? '#16a34a' : g.res === 'D' ? '#6B7280' : g.res === 'L' ? '#DC2626' : '#CBD5E1';
+              return (
+                <TouchableOpacity
+                  key={`${g.matchId ?? 'm'}-${idx}`}
+                  activeOpacity={0.75}
+                  onPress={() => {
+                    const idNum = Number(g?.matchId);
+                    if (!Number.isFinite(idNum) || idNum <= 0) return;
+                    navigation?.push?.('Match', { matchId: String(idNum), channel: String(scope || 'guatemala').toLowerCase() });
+                  }}
+                  style={S.formChip}
                 >
-                  {s.name}
-                </Text>
-              ))}
-            </View>
-          </>
-        )}
-      </View>
-    </TouchableOpacity>
-  </View>
-)}
-
-
-
-
-      {/* Destacados por rating (último partido) */}
-{!!topRated.length && (
-  <View style={[styles.summaryCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-
-    <Text style={[styles.summaryTitle, { color: colors.text }]}>Mejores jugadores (último partido)</Text>
-
-    <View style={{ marginTop: 10 }}>
-      {topRated.map((p) => (
-        <TouchableOpacity
-          key={p.playerId}
-          activeOpacity={0.7}
-          onPress={() => {
-            const tid = Array.isArray(teamId) ? Number(teamId[0]) : Number(teamId);
-            navigation?.navigate?.('Player', {
-              playerId: Number(p.playerId),
-              teamId: tid,
-              scope,
-            });
-          }}
-          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 14 }}
-        >
-          <Avatar id={p.playerId} size={40} overlayRating={p.rating} />
-          <View style={{ marginLeft: 10, flex: 1 }}>
-            <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}> {p.name}</Text>
-            <Text style={{ fontSize: 12, color: colors.textMuted }}> Rating: {Number(p.rating).toFixed(1)}</Text>
+                  {/* Badge W/D/L */}
+                  <View style={[S.formBadge, { backgroundColor: bg }]}>
+                    <Text style={S.formBadgeText}>{g.scoreStr}</Text>
+                  </View>
+                  {/* Logo rival */}
+                  <LogoImg teamId={g.oppId} size={26} style={{ marginTop: 5 }} />
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </TouchableOpacity>
-      ))}
-    </View>
-  </View>
-)}
+        </View>
+      )}
 
+      {/* ══ GOLEADOR PRINCIPAL ══ */}
+      {mainScorer && (
+        <View style={[S.card, { backgroundColor: cardBg, borderColor: border }]}>
+          <SecHeader title="Goleador de la temporada" colors={colors} />
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => navigation.navigate('Player', { playerId: Number(mainScorer.playerId), teamId: teamIdNum, scope })}
+            style={S.scorerRow}
+          >
+            <Avatar id={mainScorer.playerId} size={56} rounded />
+            <View style={{ flex: 1 }}>
+              <Text style={[S.scorerName, { color: colors.text }]}>{mainScorer.name}</Text>
+              <View style={S.scorerGoalsRow}>
+                <Text style={[S.scorerGoalsNum, { color: BRAND.primary }]}>{mainScorer.goals}</Text>
+                <Text style={[S.scorerGoalsLabel, { color: colors.textMuted }]}>goles</Text>
+              </View>
+            </View>
+            <View style={[S.goalsBadge, { backgroundColor: isDark ? 'rgba(59,91,219,0.15)' : 'rgba(59,91,219,0.08)', borderColor: isDark ? 'rgba(59,91,219,0.3)' : 'rgba(59,91,219,0.15)' }]}>
+              <Text style={[S.goalsBadgeNum, { color: BRAND.primary }]}>{mainScorer.goals}</Text>
+            </View>
+          </TouchableOpacity>
 
-      {/* 5) Posición en la tabla */}
-{teamRow && (
-  <View style={[styles.summaryCard, { backgroundColor: colors.cardBg, borderColor: colors.cardBorder }]}>
-    <Text style={[styles.summaryTitle, { color: colors.text }]}>Posición en la tabla</Text>
+          {otherScorers.length > 0 && (
+            <View style={[S.otherScorers, { borderTopColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}>
+              <Text style={[S.otherScorersLabel, { color: colors.textMuted }]}>
+                Comparten el liderato:
+              </Text>
+              <View style={S.otherScorersRow}>
+                {otherScorers.map(s => (
+                  <TouchableOpacity
+                    key={s.playerId || s.name}
+                    onPress={() => navigation.navigate('Player', { playerId: Number(s.playerId), teamId: teamIdNum, scope })}
+                    style={[S.otherChip, { backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : '#F3F4F6' }]}
+                  >
+                    <Text style={[S.otherChipText, { color: colors.text }]}>{s.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+      )}
 
+      {/* ══ MEJORES DEL ÚLTIMO PARTIDO ══ */}
+      {topRated.length > 0 && (
+        <View style={[S.card, { backgroundColor: cardBg, borderColor: border }]}>
+          <SecHeader title="Mejores del último partido" colors={colors} />
+          <View style={{ gap: 4 }}>
+            {topRated.map((p, i) => (
+              <TouchableOpacity
+                key={p.playerId}
+                activeOpacity={0.75}
+                onPress={() => navigation?.navigate?.('Player', { playerId: Number(p.playerId), teamId: teamIdNum, scope })}
+                style={[S.ratedRow, { borderBottomColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }]}
+              >
+                <Text style={[S.ratedRank, { color: colors.textMuted }]}>{i + 1}</Text>
+                <Avatar id={p.playerId} size={36} rounded />
+                <Text style={[S.ratedName, { color: colors.text }]} numberOfLines={1}>{p.name}</Text>
+                <View style={[S.ratingPill, { backgroundColor: ratingBg(p.rating, isDark) }]}>
+                  <Text style={[S.ratingText, { color: ratingColor(p.rating) }]}>
+                    {Number(p.rating).toFixed(1)}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
 
-    <View style={styles.infoWrap}>
-      {/* Encabezados */}
-      <View style={[styles.infoHeaderRowSoft, { backgroundColor: (colors.rowBg || colors.cardBg) }]}>
-        {['Pos','Pts','PJ','G','E','P','GF','GC','Dif'].map((h) => (
-          <Text key={`h-${h}`} style={[styles.infoHeadCell, { color: colors.textMuted }]} numberOfLines={1} > {h} </Text>
-        ))}
-      </View>
-
-      {/* Valores (una sola fila) */}
-      <View style={[styles.infoRowSoft, { backgroundColor: colors.cardBg }]}>
-
-        {[
-          teamRow.position ?? '-',
-          teamRow.points ?? '-',
-          teamRow.played ?? '-',
-          teamRow.wins ?? '-',
-          teamRow.draws ?? '-',
-          teamRow.losses ?? '-',
-          teamRow.goalsFor ?? '-',
-          teamRow.goalsAgainst ?? '-',
-          teamRow.goalDiff ?? '-',
-        ].map((v, i) => (
-          i === 0 ? (
-            // Celda especial: posición con badge verde
-            <View key={`v-${i}`} style={styles.infoValCellBox}>
-    <View style={[styles.posBadge, { backgroundColor: badgeBg }, badgeBorder]}>
-      <Text style={[styles.posBadgeTxt, { color: badgeTxt }]}>{String(v)}</Text>
-    </View>
-  </View>
-) : (
-  <Text key={`v-${i}`} style={[styles.infoValCell, { color: colors.text }]} numberOfLines={1}> {String(v)} </Text> )))}
-      </View>
-    </View>
-  </View>
-)}
-
+      {/* ══ POSICIÓN EN LA TABLA ══ */}
+      {teamRow && (
+        <View style={[S.card, { backgroundColor: cardBg, borderColor: border }]}>
+          <SecHeader title="Posición en la tabla" colors={colors} />
+          {/* Header */}
+          <View style={[S.tableHeader, { backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }]}>
+            {TABLE_COLS.map(col => (
+              <Text key={col.label} style={[S.tableHeadCell, { color: colors.textMuted }]}>{col.label}</Text>
+            ))}
+          </View>
+          {/* Fila */}
+          <View style={[S.tableRow, { backgroundColor: cardBg }]}>
+            {TABLE_COLS.map((col, i) => (
+              i === 0 ? (
+                <View key={col.label} style={S.tableCell}>
+                  <View style={[S.posBadge, { backgroundColor: badgeBg }, badgeBorder]}>
+                    <Text style={[S.posBadgeText, { color: badgeTxt }]}>{String(col.value ?? '-')}</Text>
+                  </View>
+                </View>
+              ) : (
+                <Text key={col.label} style={[S.tableCell, S.tableCellText, { color: colors.text }]}>
+                  {String(col.value ?? '-')}
+                </Text>
+              )
+            ))}
+          </View>
+        </View>
+      )}
 
     </View>
   );
 }
 
-/* ============================== Estilos ============================== */
-const styles = StyleSheet.create({
-  summaryCard: {
-  backgroundColor: '#fff',   // se sobreescribe con colors.cardBg
-  borderRadius: 10,
-  padding: 12,
-  elevation: 1,
-  shadowColor: '#000',
-  shadowOpacity: 0.05,
-  shadowRadius: 4,
-  marginTop: 2,
-  borderWidth: 1,
-  borderColor: 'transparent', // se sobreescribe con colors.cardBorder
-},
+/* ─── Rating helpers ─────────────────────────────────────── */
+const ratingBg = (r, dark) =>
+  r >= 8 ? (dark ? 'rgba(22,163,74,0.2)'  : 'rgba(22,163,74,0.1)')  :
+  r >= 6 ? (dark ? 'rgba(59,91,219,0.2)'  : 'rgba(59,91,219,0.1)')  :
+           (dark ? 'rgba(220,38,38,0.2)'   : 'rgba(220,38,38,0.1)');
+const ratingColor = r => r >= 8 ? '#16a34a' : r >= 6 ? BRAND.primary : '#DC2626';
 
-  summaryHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+/* ─── Styles ─────────────────────────────────────────────── */
+const S = StyleSheet.create({
+  card: {
+    borderRadius: 16, borderWidth: 1, padding: 14,
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 8, shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
   },
-  summaryTitle: {
-  fontSize: 16,
-  fontWeight: '800',
-  color: '#0f172a', // se sobreescribe en uso si quieres, o déjalo así
-},
 
-  linkArrow: { fontSize: 23, color: '#d32f2f', fontWeight: '900' },
-  formRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  formChip: {
-    width: 61.5, height: 50, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center', paddingTop: 10, paddingBottom: 10,
-  },
-  formChipScore: { color: '#fff', fontWeight: '800', fontSize: 12, lineHeight: 18, },
-  infoTable: {
-  marginTop: 8,
-  borderWidth: 1,
-  borderColor: '#e5e7eb',
-  borderRadius: 8,
-  overflow: 'hidden',
-  backgroundColor: '#fff',
-},
-formScoreBadge: {
-  minWidth: 36,            // ancho mínimo del “píldora”
-  paddingHorizontal: 10,
-  paddingVertical: 2,
-  borderRadius: 999,       // píldora redonda
-  alignItems: 'center',
-  justifyContent: 'center',
-},
+  /* Section header */
+  secHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  secBar:    { width: 3, height: 16, borderRadius: 2 },
+  secTitle:  { fontFamily: 'Poppins-SemiBold', fontSize: 13, flex: 1 },
+  secLink:   { fontFamily: 'Poppins-Regular',  fontSize: 12 },
 
-// --- Info del equipo (full-bleed dentro del summaryCard) ---
-infoWrap: {
-  marginTop: 8,
-  borderRadius: 10,
-  overflow: 'hidden',
-  marginBottom: -10,
-},
-infoHeaderRowSoft: {
-  flexDirection: 'row',
-  backgroundColor: '#f1f5f9',   // se sobreescribe con colors.rowBg/cardBg
-  paddingVertical: 6,
-  paddingHorizontal: 8,
-},
-infoRowSoft: {
-  flexDirection: 'row',
-  backgroundColor: '#fff',      // se sobreescribe con colors.cardBg
-  paddingVertical: 10,
-  paddingHorizontal: 8,
-},
+  /* Form chips */
+  formRow:  { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  formChip: { alignItems: 'center', minWidth: 52 },
+  formBadge: { borderRadius: 50, paddingHorizontal: 10, paddingVertical: 4, minWidth: 44, alignItems: 'center' },
+  formBadgeText: { fontFamily: 'Poppins-Bold', fontSize: 11, color: '#fff', lineHeight: 16 },
 
-infoHeadCell: {
-  flex: 1,
-  minWidth: 32,
-  textAlign: 'center',
-  fontSize: 12,
-  fontWeight: '700',
-  color: '#64748b', // se sobreescribe al usar colors.textMuted
-},
-infoValCell: {
-  flex: 1,
-  minWidth: 32,
-  textAlign: 'center',
-  fontSize: 12,
-  fontWeight: '800',
-  color: '#0f172a', // se sobreescribe al usar colors.text
-  marginTop: 2,
-},
+  /* Scorer */
+  scorerRow:      { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  scorerName:     { fontFamily: 'Poppins-SemiBold', fontSize: 14, marginBottom: 2 },
+  scorerGoalsRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
+  scorerGoalsNum: { fontFamily: 'Poppins-Bold', fontSize: 22, lineHeight: 26 },
+  scorerGoalsLabel:{ fontFamily: 'Poppins-Regular', fontSize: 12 },
+  goalsBadge:     { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  goalsBadgeNum:  { fontFamily: 'Poppins-Bold', fontSize: 18 },
 
-// celda contenedora para la posición (para poder centrar el badge)
-infoValCellBox: {
-  flex: 1,
-  minWidth: 32,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-// badge verde tipo PositionsBlock (redondo/pastilla)
-posBadge: {
-  backgroundColor: '#10B981',   // verde
-  minWidth: 22,
-  height: 22,
-  paddingHorizontal: 8,         // si hay 2 dígitos no se corta
-  borderRadius: 999,
-  alignItems: 'center',
-  justifyContent: 'center',
-},
-posBadgeTxt: {
-  color: '#fff',
-  fontWeight: '800',
-  fontSize: 12,
-  lineHeight: 16,
-},
+  otherScorers:   { marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  otherScorersLabel: { fontFamily: 'Poppins-Regular', fontSize: 11, marginBottom: 6 },
+  otherScorersRow:{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  otherChip:      { borderRadius: 50, paddingHorizontal: 10, paddingVertical: 5 },
+  otherChipText:  { fontFamily: 'Poppins-Regular', fontSize: 12 },
+
+  /* Rated */
+  ratedRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
+  ratedRank: { fontFamily: 'Poppins-Regular', fontSize: 12, width: 16, textAlign: 'center' },
+  ratedName: { fontFamily: 'Poppins-Regular', fontSize: 13, flex: 1 },
+  ratingPill:{ borderRadius: 50, paddingHorizontal: 10, paddingVertical: 4, minWidth: 44, alignItems: 'center' },
+  ratingText:{ fontFamily: 'Poppins-Bold', fontSize: 13 },
+
+  /* Table */
+  tableHeader: { flexDirection: 'row', borderRadius: 8, paddingVertical: 6, paddingHorizontal: 4, marginBottom: 2 },
+  tableRow:    { flexDirection: 'row', paddingVertical: 8, paddingHorizontal: 4 },
+  tableHeadCell:{ flex: 1, textAlign: 'center', fontFamily: 'Poppins-Regular', fontSize: 11 },
+  tableCell:   { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  tableCellText:{ textAlign: 'center', fontFamily: 'Poppins-Bold', fontSize: 12 },
+  posBadge:    { minWidth: 22, height: 22, borderRadius: 11, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
+  posBadgeText:{ fontFamily: 'Poppins-Bold', fontSize: 11, lineHeight: 16 },
 });
+
 export default withTheme(TeamSummary);

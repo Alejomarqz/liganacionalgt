@@ -15,8 +15,8 @@ import { setOpenAdGrace } from './AppOpenAdManager';
 const UNIT_ID = __DEV__
   ? TestIds.INTERSTITIAL
   : Platform.OS === 'ios'
-    ? 'ca-app-pub-3710973902746391/7881605041'   // iOS
-    : 'ca-app-pub-3710973902746391/2280373125';  // Android
+    ? 'ca-app-pub-5408077761010566/7616279177'   // iOS — interstitial_general
+    : 'ca-app-pub-5408077761010566/9845627398';  // Android — interstitial_general
 
 // Cooldown por plataforma
 const COOLDOWN_IOS_MS = 45_000;      // 45s
@@ -111,11 +111,7 @@ function handleAppStateChange(nextState) {
   const nowActive = (nextState === 'active');
 
   if (wasBg && nowActive) {
-    // Nueva sesión lógica al volver a foreground
     resetSession();
-
-    // Nota: NO tocamos pushGraceUntil aquí
-    // porque el "push grace" se activa explícitamente con setPushGrace()
   }
 
   currentAppState = nextState;
@@ -126,9 +122,7 @@ function handleAppStateChange(nextState) {
  * ========================= */
 export function resetSession() {
   shownCount = 0;
-
   // ⚠️ NO reiniciamos lastShownAt para evitar spam inmediato
-  // cuando el usuario alterna apps / vuelve del background.
 }
 
 /* =========================
@@ -152,4 +146,3 @@ export async function showInterstitialIfReady(reason = '') {
     return false;
   }
 }
-

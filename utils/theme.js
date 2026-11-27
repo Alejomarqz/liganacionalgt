@@ -4,17 +4,17 @@ import { StyleSheet, Platform } from 'react-native';
 // ─────────────────────────────────────────────
 //  LIGA NACIONAL GT — Sistema de Diseño 2025
 //  Fuente: Poppins (configurar en tu app)
-//  Paleta: Azul Chapín + Dorado + Verde acento
+//  Paleta: Azul Royal (logo escudo)
 // ─────────────────────────────────────────────
 
 // Brand tokens — úsalos donde quieras acceder
 // directamente al color sin pasar por el tema
 export const BRAND = {
-  primary:     '#003F8A',   // Azul chapín profundo
-  primaryDark: '#002D6B',   // Azul más oscuro (hover / pressed)
-  primaryLight:'#0057C2',   // Azul más claro (gradientes)
-  gold:        '#F5A623',   // Dorado Guatemala
-  goldLight:   '#FFCA56',   // Dorado claro
+  primary:     '#3B5BDB',   // Azul Royal — color del escudo
+  primaryDark: '#2A4AC9',   // Azul más oscuro (hover / pressed)
+  primaryLight:'#4A6CF7',   // Azul más claro (gradientes / dark mode)
+  gold:        '#F59E0B',   // Dorado
+  goldLight:   '#FCD34D',   // Dorado claro
   accent:      '#00C48C',   // Verde acento (en vivo / activo)
   red:         '#E8304A',   // Rojo (en vivo / error / descenso)
   redLight:    '#FF6B80',
@@ -23,50 +23,50 @@ export const BRAND = {
 // ─── LIGHT COLORS ───────────────────────────
 export const lightColors = {
   // Fondos
-  appBg:           '#F0F2F7',
-  screenBg:        '#F0F2F7',
+  appBg:           '#F4F6FB',
+  screenBg:        '#F4F6FB',
   headerBg:        '#FFFFFF',
   cardBg:          '#FFFFFF',
-  cardBgAlt:       '#F7F8FC',
+  cardBgAlt:       '#F8F9FE',
   statusBarBg:     '#FFFFFF',
 
   // Tabs
   tabBarBg:        '#FFFFFF',
-  tabBarBorder:    'rgba(0,0,0,0.07)',
+  tabBarBorder:    'rgba(59,91,219,0.10)',
 
   // Bordes
-  cardBorder:      'rgba(0,0,0,0.07)',
+  cardBorder:      'rgba(59,91,219,0.10)',
 
   // Textos
-  headerText:      '#0D0F1C',
-  text:            '#0D0F1C',
+  headerText:      '#0F1235',
+  text:            '#0F1235',
   textSecondary:   '#5A5E78',
   textMuted:       '#9496A8',
 
-  // Iconos (estilo Facebook)
-  iconBg:          '#E4E6F0',
+  // Iconos
+  iconBg:          '#EEF0FB',
   iconColor:       '#5A5E78',
 
-  // Acento principal (heredado)
+  // Acento principal
   accent:          BRAND.primary,
 
   // Input / Segmentos
-  segmentBg:       '#E6E9F2',
-  segmentBorder:   '#CDD0E0',
+  segmentBg:       '#EEF0FB',
+  segmentBorder:   'rgba(59,91,219,0.18)',
   segmentText:     '#5A5E78',
   segmentTextActive:'#FFFFFF',
-  inputBg:         '#E8EAF3',
+  inputBg:         '#EEF0FB',
 
   // Filas
   rowBg:           '#FFFFFF',
-  rowBgAlt:        '#F4F5FA',
-  rowBgHighlight:  'rgba(0,63,138,0.04)',
+  rowBgAlt:        '#F8F9FE',
+  rowBgHighlight:  'rgba(59,91,219,0.04)',
 
   // Chips / Misc
-  chipNumberBg:    '#E4E6F0',
-  chipNumberBorder:'#CDD0E0',
-  trackBg:         '#E4E6F0',
-  bot:             '#E4E6F0',
+  chipNumberBg:    '#EEF0FB',
+  chipNumberBorder:'rgba(59,91,219,0.18)',
+  trackBg:         '#EEF0FB',
+  bot:             '#EEF0FB',
 
   // EN VIVO
   liveText:        '#FFFFFF',
@@ -86,19 +86,19 @@ export const lightColors = {
 // ─── DARK COLORS ────────────────────────────
 export const darkColors = {
   // Fondos
-  appBg:           '#0F1117',
-  screenBg:        '#0F1117',
-  headerBg:        '#181B23',
-  cardBg:          '#1C1F2A',
-  cardBgAlt:       '#22263A',
-  statusBarBg:     '#181B23',
+  appBg:           '#0E1120',
+  screenBg:        '#0E1120',
+  headerBg:        '#161929',
+  cardBg:          '#1C2035',
+  cardBgAlt:       '#222640',
+  statusBarBg:     '#161929',
 
   // Tabs
-  tabBarBg:        '#181B23',
-  tabBarBorder:    'rgba(255,255,255,0.07)',
+  tabBarBg:        '#161929',
+  tabBarBorder:    'rgba(74,108,247,0.12)',
 
   // Bordes
-  cardBorder:      'rgba(255,255,255,0.07)',
+  cardBorder:      'rgba(74,108,247,0.12)',
 
   // Textos
   headerText:      '#F1F2F6',
@@ -106,29 +106,29 @@ export const darkColors = {
   textSecondary:   '#9496A8',
   textMuted:       '#5A5C72',
 
-  // Iconos (estilo Facebook — gris oscuro en dark)
-  iconBg:          '#2A2D3E',
+  // Iconos
+  iconBg:          '#222640',
   iconColor:       '#C8CAD8',
 
-  // Acento principal
-  accent:          BRAND.primary,
+  // Acento principal — azul brillante para contraste en dark
+  accent:          BRAND.primaryLight,   // #4A6CF7 — visible sobre fondos oscuros
 
   // Input / Segmentos
-  segmentBg:       '#20232E',
-  segmentBorder:   'rgba(255,255,255,0.08)',
+  segmentBg:       '#1C2035',
+  segmentBorder:   'rgba(74,108,247,0.18)',
   segmentText:     '#9496A8',
   segmentTextActive:'#FFFFFF',
-  inputBg:         '#20232E',
+  inputBg:         '#1C2035',
 
   // Filas
-  rowBg:           '#1C1F2A',
-  rowBgAlt:        '#20232E',
-  rowBgHighlight:  'rgba(0,63,138,0.08)',
+  rowBg:           '#1C2035',
+  rowBgAlt:        '#222640',
+  rowBgHighlight:  'rgba(74,108,247,0.08)',
 
   // Chips / Misc
-  chipNumberBg:    '#20232E',
-  chipNumberBorder:'rgba(255,255,255,0.08)',
-  trackBg:         '#20232E',
+  chipNumberBg:    '#222640',
+  chipNumberBorder:'rgba(74,108,247,0.20)',
+  trackBg:         '#222640',
   bot:             '#FFFFFF',
 
   // EN VIVO
@@ -137,13 +137,13 @@ export const darkColors = {
   liveBorder:      BRAND.red,
 
   // Pills / Tags
-  pillActiveBg:    BRAND.primary,
+  pillActiveBg:    BRAND.primaryLight,
   pillActiveText:  '#FFFFFF',
-  pillActiveBorder:BRAND.primary,
+  pillActiveBorder:BRAND.primaryLight,
 
-  // Nav activo
-  navActive:       BRAND.primary,
-  navInactive:     '#5A5C72',
+  // Nav activo — blanco suave en dark (nunca azul oscuro invisible)
+  navActive:       '#F1F2F6',
+  navInactive:     '#4A4D62',
 };
 
 // ─── NAVIGATION THEMES ──────────────────────
@@ -162,7 +162,7 @@ export const LIGHT_NAV_THEME = {
 export const DARK_NAV_THEME = {
   dark: true,
   colors: {
-    primary:      BRAND.primary,
+    primary:      BRAND.primaryLight,
     background:   darkColors.appBg,
     card:         darkColors.headerBg,
     text:         darkColors.text,
@@ -187,7 +187,6 @@ export const darkTheme = {
 };
 
 // ─── TIPOGRAFÍA — Poppins ────────────────────
-// Úsalo en cualquier Text como: ...TYPOGRAPHY.h1
 export const TYPOGRAPHY = {
   h1:      { fontFamily: 'Poppins-Bold',       fontSize: 28, lineHeight: 34 },
   h2:      { fontFamily: 'Poppins-Bold',       fontSize: 22, lineHeight: 28 },
@@ -252,13 +251,13 @@ export const SHADOWS = {
 
 // ─── COLORES DE ESTADO DE PARTIDO ────────────
 export const STATUS_COLORS = {
-  live:      { bg: 'rgba(232,48,74,0.12)',  text: BRAND.red,       dot: BRAND.red       },
-  halftime:  { bg: 'rgba(245,166,35,0.12)', text: BRAND.gold,      dot: BRAND.gold      },
-  finished:  { bg: 'rgba(148,150,168,0.1)', text: '#9496A8',       dot: '#9496A8'       },
-  upcoming:  { bg: 'rgba(0,63,138,0.1)',    text: BRAND.primary,   dot: BRAND.primary   },
-  suspended: { bg: 'rgba(245,166,35,0.12)', text: '#E07B00',       dot: '#E07B00'       },
-  postponed: { bg: 'rgba(148,150,168,0.1)', text: '#9496A8',       dot: '#9496A8'       },
-  default:   { bg: 'rgba(148,150,168,0.1)', text: '#9496A8',       dot: '#9496A8'       },
+  live:      { bg: 'rgba(232,48,74,0.12)',  text: BRAND.red,          dot: BRAND.red          },
+  halftime:  { bg: 'rgba(245,158,11,0.12)', text: BRAND.gold,         dot: BRAND.gold         },
+  finished:  { bg: 'rgba(148,150,168,0.1)', text: '#9496A8',          dot: '#9496A8'          },
+  upcoming:  { bg: 'rgba(59,91,219,0.10)',  text: BRAND.primary,      dot: BRAND.primary      },
+  suspended: { bg: 'rgba(245,158,11,0.12)', text: '#E07B00',          dot: '#E07B00'          },
+  postponed: { bg: 'rgba(148,150,168,0.1)', text: '#9496A8',          dot: '#9496A8'          },
+  default:   { bg: 'rgba(148,150,168,0.1)', text: '#9496A8',          dot: '#9496A8'          },
 };
 
 // ─── COMPATIBILIDAD (mantiene tu API anterior) ─
@@ -266,21 +265,21 @@ export const palette = {
   background: '#ffffff',
   primary:    BRAND.primary,
   onPrimary:  '#ffffff',
-  text:       '#0D0F1C',
-  border:     'rgba(0,0,0,0.07)',
+  text:       '#0F1235',
+  border:     'rgba(59,91,219,0.10)',
 };
 
 export const COLORS = {
-  bg:           lightColors.screenBg,
-  text:         lightColors.text,
-  textMuted:    lightColors.textMuted,
-  divider:      lightColors.cardBorder,
-  cardBg:       lightColors.cardBg,
-  cardBorder:   lightColors.cardBorder,
-  liveBg:       'rgba(232,48,74,0.1)',
-  liveBorder:   BRAND.red,
-  liveText:     BRAND.red,
-  cardLiveBg:   'rgba(232,48,74,0.06)',
+  bg:            lightColors.screenBg,
+  text:          lightColors.text,
+  textMuted:     lightColors.textMuted,
+  divider:       lightColors.cardBorder,
+  cardBg:        lightColors.cardBg,
+  cardBorder:    lightColors.cardBorder,
+  liveBg:        'rgba(232,48,74,0.1)',
+  liveBorder:    BRAND.red,
+  liveText:      BRAND.red,
+  cardLiveBg:    'rgba(232,48,74,0.06)',
   cardLiveBorder:BRAND.red,
 };
 
@@ -320,12 +319,12 @@ export function statusText(statusId) {
 }
 
 export const STATUS_ACCENTS = {
-  live:      { bar: BRAND.red,     text: BRAND.red     },
-  pre:       { bar: '#DCE8FF',     text: BRAND.primary },
-  finished:  { bar: '#ECECEC',     text: '#9CA3AF'     },
-  suspended: { bar: '#FFE8D6',     text: '#EA580C'     },
-  postponed: { bar: '#F0F0F0',     text: '#6B7280'     },
-  default:   { bar: '#EAEAEA',     text: '#374151'     },
+  live:      { bar: BRAND.red,          text: BRAND.red       },
+  pre:       { bar: '#D8E0FF',          text: BRAND.primary   },
+  finished:  { bar: '#ECECEC',          text: '#9CA3AF'       },
+  suspended: { bar: '#FFE8D6',          text: '#EA580C'       },
+  postponed: { bar: '#F0F0F0',          text: '#6B7280'       },
+  default:   { bar: '#EAEAEA',          text: '#374151'       },
 };
 
 export function getAccent(statusId) {

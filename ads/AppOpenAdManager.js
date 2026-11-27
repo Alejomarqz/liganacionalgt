@@ -1,123 +1,78 @@
 // ads/AppOpenAdManager.js
-import { AppState, Platform } from 'react-native';
-import { AppOpenAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
+import { Platform } from 'react-native';
+import {
+  InterstitialAd,
+  AdEventType,
+  TestIds,
+} from 'react-native-google-mobile-ads';
+import AD_UNITS from './AdConfig';
 
-/* =========================
- * CONFIG
- * ========================= */
-const UNIT_ID = __DEV__
-  ? TestIds.APP_OPEN
-  : Platform.OS === 'ios'
-    ? 'ca-app-pub-3710973902746391/5550213644' // 👈 TU APP OPEN iOS (cuando lo crees)
-    : 'ca-app-pub-3710973902746391/2731660370'; // ✅ TU APP OPEN Android
+// ── Usa el ad unit de App Open ──
+const UNIT_ID = AD_UNITS.APP_OPEN;
 
-// Para no ser invasivo
-const COOLDOWN_MS = 90_000;      // 90s
-const MAX_PER_SESSION = 6;
-
-// “Gracia” (ej: si venimos desde push, o recién abrió la app)
-let graceUntil = 0;
-
-/* =========================
- * STATE
- * ========================= */
-let appOpen = null;
+// Control interno
+let interstitial = null;
 let isLoaded = false;
-let isShowing = false;
-
 let lastShownAt = 0;
 let shownCount = 0;
 
-let currentAppState = AppState.currentState;
+// Límites
+const COOLDOWN_MS = 120_000; // 2 minutos entre anuncios
+const MAX_PER_SESSION = 4;   // máximo por sesión
 
-/* =========================
- * HELPERS
- * ========================= */
-function canShowNow() {
+// Gracia para que AppOpen no interfiera con interstitials
+let openAdGraceUntil = 0;
+export function setOpenAdGrace(ms = 30_000) {
+  openAdGraceUntil = Date.now() + (Number(ms) || 30_000);
+}
+export function isOpenAdBlocked() {
+  return Date.now() < openAdGraceUntil;
+}
+
+// Inicializa y carga el interstitial
+export function initInterstitial() {
+  if (interstitial) return;
+
+  interstitial = InterstitialAd.createForAdRequest(UNIT_ID, {
+    requestNonPersonalizedAdsOnly: false,
+  });
+
+  interstitial.addAdEventListener(AdEventType.LOADED, () => {
+    isLoaded = true;
+  });
+
+  interstitial.addAdEventListener(AdEventType.CLOSED, () => {
+    isLoaded = false;
+    interstitial?.load();
+  });
+
+  interstitial.addAdEventListener(AdEventType.ERROR, () => {
+    isLoaded = false;
+  });
+
+  interstitial.load();
+}
+
+// Valida si puede mostrarse
+function canShowInterstitial() {
   const now = Date.now();
-  if (!appOpen) return false;
   if (!isLoaded) return false;
-  if (isShowing) return false;
+  if (isOpenAdBlocked()) return false;
   if (shownCount >= MAX_PER_SESSION) return false;
-  if (now < graceUntil) return false;
   if (now - lastShownAt < COOLDOWN_MS) return false;
   return true;
 }
 
-/* =========================
- * API
- * ========================= */
-
-// Llama esto cuando vienes desde push (o cuando quieras dar tiempo antes de mostrar)
-export function setOpenAdGrace(ms = 10_000) {
-  graceUntil = Date.now() + Math.max(0, ms);
-}
-
-export function resetOpenAdSession() {
-  shownCount = 0;
-  lastShownAt = 0;
-}
-
-export function initAppOpenAd() {
-  if (appOpen) return;
-
-  appOpen = AppOpenAd.createForAdRequest(UNIT_ID, {
-    requestNonPersonalizedAdsOnly: false,
-  });
-
-  appOpen.addAdEventListener(AdEventType.LOADED, () => {
-    isLoaded = true;
-  });
-
-  appOpen.addAdEventListener(AdEventType.ERROR, () => {
-    isLoaded = false;
-  });
-
-  appOpen.addAdEventListener(AdEventType.OPENED, () => {
-    isShowing = true;
-  });
-
-  appOpen.addAdEventListener(AdEventType.CLOSED, () => {
-    isShowing = false;
-    isLoaded = false;
-
+// Intenta mostrarlo
+export async function tryShowInterstitial() {
+  if (!canShowInterstitial()) return false;
+  try {
+    await interstitial?.show();
     lastShownAt = Date.now();
     shownCount += 1;
-
-    // preload siguiente
-    appOpen?.load();
-  });
-
-  // preload inicial
-  appOpen.load();
-
-  // mostrar al volver a foreground
-  AppState.addEventListener('change', handleAppStateChange);
-}
-
-export async function showAppOpenAdIfReady(reason = '') {
-  if (!canShowNow()) return false;
-
-  try {
-    await appOpen?.show();
     return true;
-  } catch (e) {
-    isShowing = false;
+  } catch (err) {
+    console.warn('Error mostrando interstitial:', err);
     return false;
   }
-}
-
-/* =========================
- * APPSTATE
- * ========================= */
-async function handleAppStateChange(nextState) {
-  if (
-    (currentAppState === 'background' || currentAppState === 'inactive') &&
-    nextState === 'active'
-  ) {
-    if (!isLoaded) appOpen?.load();
-    await showAppOpenAdIfReady('foreground');
-  }
-
-  currentAppState = nextState;
 }

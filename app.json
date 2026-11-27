@@ -1,9 +1,9 @@
 {
-  "name": "chapin",
-  "displayName": "chapin",
+  "name": "Liga Nacional GT",
+  "displayName": "Liga Nacional GT",
   "react-native-google-mobile-ads": {
-    "android_app_id": "ca-app-pub-3710973902746391~2280373125",
-    "ios_app_id": "ca-app-pub-3710973902746391~7881605041",
+    "android_app_id": "ca-app-pub-5408077761010566~2964971386",
+    "ios_app_id": "ca-app-pub-5408077761010566~8569938622",
     "user_tracking_usage_description": "This identifier will be used to deliver personalized ads to you."
   }
 }

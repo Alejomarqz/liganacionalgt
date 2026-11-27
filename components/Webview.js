@@ -40,8 +40,8 @@ export default class Webview extends Component {
     // Configuración de los anuncios de Google
     let adUnitId =
       Platform.OS === 'ios'
-        ? 'ca-app-pub-3710973902746391/7881605041'
-        : 'ca-app-pub-3710973902746391/2280373125';
+        ? 'ca-app-pub-5408077761010566/7881605041'
+        : 'ca-app-pub-5408077761010566/9845627398';
     if (__DEV__) {
       adUnitId = TestIds.INTERSTITIAL;
     }
@@ -109,12 +109,13 @@ export default class Webview extends Component {
           ) : null}
           <Header navigation={this.props.navigation} />
         </View>
-        <View style={styles.title}>
-          <Text style={styles.titleText}>TORNEOS</Text>
-        </View>
+       <View style={styles.title}>
+  <Text style={styles.titleText} numberOfLines={1}>
+    {this.props.route?.params?.title || 'TORNEOS'}
+  </Text>
+</View>
         <WebView
-          source={{ uri: 'https://cd.futbolchapin.app/' }}
-          startInLoadingState={true}
+          source={{ uri: this.props.route?.params?.url || 'https://cd.futbolchapin.app/' }}          startInLoadingState={true}
           originWhitelist={['*']}
           ref={this.WEBVIEW_REF}
           onNavigationStateChange={this.onNavigationStateChange}

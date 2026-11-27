@@ -1,4 +1,4 @@
-package com.chapinpro
+package com.liganacionalgt
 
 import android.app.Application
 import com.facebook.react.PackageList

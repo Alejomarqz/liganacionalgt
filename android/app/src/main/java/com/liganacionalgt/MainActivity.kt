@@ -1,4 +1,4 @@
-package com.chapinpro
+package com.liganacionalgt
 
 import android.os.Bundle
 import com.facebook.react.ReactActivity

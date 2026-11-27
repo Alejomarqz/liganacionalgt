@@ -16,15 +16,15 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
 }
 
 dependencyResolutionManagement {
-  // Puedes dejar PREFER_SETTINGS, pero yo prefiero FAIL_ON_PROJECT_REPOS.
-  // Si lo cambias, hazlo así:
-  // repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
   repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+
   repositories {
     mavenCentral()
     google()
 
-    // Si quieres mantener tu bloque exclusivo para RN, ok:
+    // ✅ Repositorio necesario para Notifee
+    maven { url = uri("https://maven.notifee.app") }
+
     exclusiveContent {
       forRepository {
         maven {
