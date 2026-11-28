@@ -13,7 +13,7 @@ function LigaTVBanner({ tv, onPress }) {
   if (!tv?.active && !upcoming) return null;
 
   return (
-    <PressableScale onPress={onPress} style={{ marginHorizontal: 16, marginTop: 16 }}>
+    <PressableScale onPress={onPress} style={{ marginHorizontal: 16 }}>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: tv.active ? 'rgba(255,59,78,0.35)' : colors.border }]}>
         <View style={[styles.icon, { backgroundColor: tv.active ? colors.liveSoft : colors.primarySoft }]}>
           <Television size={22} weight="duotone" color={tv.active ? colors.live : colors.primary} />

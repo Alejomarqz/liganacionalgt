@@ -3,15 +3,14 @@
 import React, { useCallback, useMemo } from 'react';
 import { Image, RefreshControl, ScrollView, Share, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LinearGradient from 'react-native-linear-gradient';
 import { CaretLeft, ShareNetwork, Crown } from 'phosphor-react-native';
 
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
-import { Beams, Txt, Surface, PressableScale, TeamCrest, SectionHeader, SkeletonCard, Pill } from '../ui';
+import { StadiumBackdrop, ContentSheet, Txt, Surface, PressableScale, TeamCrest, SectionHeader, SkeletonCard, Pill } from '../ui';
 import { usePlayer, normalizePlayerProfile, positionGroup, GROUP_LABEL } from '../api/profiles';
 import { useScorers } from '../api/liga';
-import { useTeamColor } from '../features/teams/useTeamColor';
+import { clubHero } from '../features/teams/clubMedia';
 import MatchRow from '../features/matches/MatchRow';
 import AdFooter from '../../ads/AdFooter';
 
@@ -50,7 +49,6 @@ export default function PlayerProfileScreen({ navigation, route }) {
 
   const scorerRow = scorers.rows.find((s) => String(s.player.id) === String(playerId));
   const team = p.team || scorerRow?.team || null;
-  const brand = useTeamColor(team, colors.primaryStrong);
   const [photoFailed, setPhotoFailed] = React.useState(false);
 
   const goals = p.stats.goals ?? scorerRow?.goals ?? null;
@@ -84,11 +82,11 @@ export default function PlayerProfileScreen({ navigation, route }) {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 40, gap: space[6] }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         refreshControl={<RefreshControl refreshing={q.refreshing} onRefresh={q.refresh} tintColor="#fff" />}
       >
-        <LinearGradient colors={[brand, colors.bg]} style={{ paddingTop: 56, paddingHorizontal: space[5], paddingBottom: space[4] }}>
-          <Beams />
+        <StadiumBackdrop source={clubHero(team) || undefined} mode={clubHero(team) ? 'photo' : 'duotone'} height={insets.top + 400}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: space[5], paddingBottom: 44 }}>
           {p.number != null ? (
             <Txt variant="display" color="rgba(255,255,255,0.08)" style={styles.watermark}>
               {p.number}
@@ -117,7 +115,10 @@ export default function PlayerProfileScreen({ navigation, route }) {
             ) : null}
             {scorerRow ? <Pill tone="gold" label={`#${scorerRow.position} en la tabla de goleo`} icon={scorerRow.position === 1 ? <Crown size={13} color={colors.gold} weight="fill" /> : null} /> : null}
           </View>
-        </LinearGradient>
+          </View>
+        </StadiumBackdrop>
+
+        <ContentSheet style={{ gap: space[6] }}>
 
         {q.loading && !p.name ? (
           <SkeletonCard height={160} style={{ marginHorizontal: space[5] }} />
@@ -162,9 +163,10 @@ export default function PlayerProfileScreen({ navigation, route }) {
         <View style={{ alignItems: 'center' }}>
           <AdFooter />
         </View>
+        </ContentSheet>
       </ScrollView>
 
-      <View style={styles.topBar} pointerEvents="box-none">
+      <View style={[styles.topBar, { paddingTop: insets.top + 6 }]} pointerEvents="box-none">
         <PressableScale onPress={() => navigation.goBack()} hitSlop={hitSlop} accessibilityLabel="Volver" style={styles.roundBtn}>
           <CaretLeft size={20} color="#fff" weight="bold" />
         </PressableScale>
@@ -178,7 +180,7 @@ export default function PlayerProfileScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  watermark: { position: 'absolute', right: 10, top: 30, fontSize: 150, lineHeight: 160 },
+  watermark: { position: 'absolute', right: -10, bottom: 20, fontSize: 170, lineHeight: 180 },
   photoRing: { padding: 4, borderRadius: 70, backgroundColor: 'rgba(255,255,255,0.18)' },
   photo: { width: 120, height: 120, borderRadius: 60 },
   teamChip: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.22)' },
@@ -186,5 +188,5 @@ const styles = StyleSheet.create({
   stat: { width: '31.5%', flexGrow: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 16, borderWidth: 1, gap: 2 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth },
   topBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', paddingHorizontal: 12, paddingTop: 6 },
-  roundBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
+  roundBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(6,10,23,0.35)', alignItems: 'center', justifyContent: 'center' },
 });

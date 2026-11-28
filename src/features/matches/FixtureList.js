@@ -5,9 +5,7 @@ import { View } from 'react-native';
 import { useDesign } from '../../design/useDesign';
 import { Txt, Surface, LiveBadge } from '../../ui';
 import MatchRow from './MatchRow';
-
-const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-const dayLabel = (d) => (d ? `${DAYS[d.getDay()]} ${d.getDate()}` : 'Por definir');
+import { gt, formatDayHeader as dayLabel } from '../../api/clock';
 
 function FixtureList({ matches, onOpen, style }) {
   const { colors } = useDesign();
@@ -18,7 +16,7 @@ function FixtureList({ matches, onOpen, style }) {
     const out = [];
     if (live.length) out.push({ key: 'live', live: true, label: live[0].kickoff ? dayLabel(live[0].kickoff) : '', items: live });
     for (const m of rest) {
-      const k = m.kickoff ? m.kickoff.toDateString() : 'tbd';
+      const k = gt(m.kickoff)?.key || 'tbd';
       let g = out.find((x) => x.key === k);
       if (!g) {
         g = { key: k, label: dayLabel(m.kickoff), items: [] };

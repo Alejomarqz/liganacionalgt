@@ -55,8 +55,8 @@ function TopBar({ onBack, onShare, reminder, insetTop }) {
 export default function MatchCenterScreen({ navigation, route }) {
   const { colors, space } = useDesign();
   const insets = useSafeAreaInsets();
-  // App.js ya envuelve todo en SafeAreaView(top): no sumamos el inset superior aquí
-  const topInset = 0;
+  // Pantalla de borde a borde: la foto va bajo la barra de estado
+  const topInset = insets.top;
   const matchId = route?.params?.matchId;
   const { model, data, loading, error, refreshing, refresh, offline } = useMatchCenterModel(matchId);
   const { tv } = useLigaTV();
@@ -118,11 +118,11 @@ export default function MatchCenterScreen({ navigation, route }) {
         stickyHeaderIndices={[1]}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor="#fff" progressViewOffset={40} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor="#fff" progressViewOffset={insets.top + 40} />}
       >
         <MatchHeader model={model} onTeam={openTeam} topInset={topInset} />
 
-        <View style={{ backgroundColor: colors.bg }}>
+        <View style={{ backgroundColor: colors.bg, marginTop: -24, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 6 }}>
           <Tabs tabs={TABS} value={activeTab} onChange={setTab} scrollable />
         </View>
 

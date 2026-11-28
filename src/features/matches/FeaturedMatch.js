@@ -7,16 +7,12 @@ import { View, StyleSheet } from 'react-native';
 import { MapPin, Target, BellSimple, BellSimpleRinging } from 'phosphor-react-native';
 import { useDesign } from '../../design/useDesign';
 import { Txt, TeamCrest, PressableScale, LiveBadge, Slash, ScoreSlash } from '../../ui';
-import { useLiveMinute } from '../../api/clock';
-import { formatTime24 } from './MatchRow';
-
-const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+import { useLiveMinute, formatTime24, formatDay } from '../../api/clock';
 
 const Side = ({ team }) => (
   <View style={styles.side}>
     <TeamCrest team={team} size={76} />
-    <Txt variant="h3" color="#fff" align="center" numberOfLines={2}>
+    <Txt variant="h3" color="#fff" align="center" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
       {team?.name}
     </Txt>
   </View>
@@ -48,7 +44,7 @@ function FeaturedMatch({ match, onPress, onPredict, reminderOn, onToggleReminder
                 {k ? formatTime24(k) : '--:--'}
               </Txt>
               <Txt variant="caption" color="rgba(255,255,255,0.7)" style={{ marginTop: 2 }}>
-                {k ? `${DAYS[k.getDay()]} ${k.getDate()} ${MONTHS[k.getMonth()]}` : ''}
+                {formatDay(k)}
               </Txt>
             </>
           ) : (

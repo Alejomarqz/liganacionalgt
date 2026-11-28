@@ -2,7 +2,8 @@
 // "Liga TV": transmisión en vivo propia (HLS) + chat de la afición.
 // Si no hay transmisión activa: cuenta regresiva a la próxima + botón "Avísame".
 import React, { useState } from 'react';
-import { Image, StatusBar, View, StyleSheet } from 'react-native';
+import { Image, View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
 import { CaretLeft, BellSimpleRinging, BellSimple, Television } from 'phosphor-react-native';
 import { useDesign } from '../design/useDesign';
@@ -56,11 +57,11 @@ function Offline({ tv }) {
 export default function LigaTVScreen({ navigation }) {
   const { colors, space } = useDesign();
   const { loading, tv } = useLigaTV();
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar barStyle="light-content" />
-      <View style={[styles.header, { paddingTop: 8, backgroundColor: '#000' }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8, backgroundColor: '#000' }]}>
         <PressableScale onPress={() => navigation.goBack()} hitSlop={hitSlop} accessibilityLabel="Volver">
           <CaretLeft size={22} color="#fff" weight="bold" />
         </PressableScale>

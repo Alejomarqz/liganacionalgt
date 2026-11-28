@@ -4,13 +4,13 @@
 // tabla con forma → goleadores → pulso del torneo.
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { Image, RefreshControl, ScrollView, StatusBar, View, StyleSheet } from 'react-native';
+import { Image, RefreshControl, ScrollView, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MagnifyingGlass, GearSix } from 'phosphor-react-native';
 
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
-import { Txt, SectionHeader, Pill, PressableScale, SkeletonCard, ErrorState, OfflineBanner, EmptyState, StadiumBackdrop } from '../ui';
+import { Txt, SectionHeader, Pill, PressableScale, SkeletonCard, ErrorState, OfflineBanner, EmptyState, StadiumBackdrop, ContentSheet } from '../ui';
 
 import { useHome, useMatches, useStandings, useScorers, selectMatchday } from '../api/liga';
 import FeaturedMatch from '../features/matches/FeaturedMatch';
@@ -30,9 +30,9 @@ import AdFooter from '../../ads/AdFooter';
 const LOGO = require('../../resources/logogrande.png');
 
 
-function Header({ onSearch, onMore }) {
+function Header({ onSearch, onMore, top }) {
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: top + 8 }]}>
       <Image source={LOGO} style={{ width: 30, height: 30 }} resizeMode="contain" />
       <View style={{ flex: 1 }}>
         <Txt variant="h3" color="#fff" style={{ letterSpacing: 1.5, fontSize: 16, lineHeight: 19 }}>
@@ -114,15 +114,14 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.photoTint[1]} />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100 + insets.bottom }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={home.refreshing || matchesQ.refreshing} onRefresh={onRefresh} tintColor="#fff" colors={[colors.primaryStrong]} />}
       >
         {/* 1 · Foto del estadio + partido destacado */}
-        <StadiumBackdrop height={featured?.isScheduled ? 420 : 370}>
-          <Header onSearch={() => setSearchOpen(true)} onMore={() => navigation.navigate('More')} />
+        <StadiumBackdrop height={(featured?.isScheduled ? 440 : 390) + insets.top}>
+          <Header top={insets.top} onSearch={() => setSearchOpen(true)} onMore={() => navigation.navigate('More')} />
           <View style={{ paddingTop: 34 }}>
             {matchesQ.loading ? (
               <SkeletonCard height={220} style={{ marginHorizontal: space[5], backgroundColor: 'transparent', borderColor: 'transparent' }} />
@@ -132,6 +131,7 @@ export default function HomeScreen({ navigation }) {
           </View>
         </StadiumBackdrop>
 
+        <ContentSheet>
         <OfflineBanner visible={matchesQ.offline || home.offline} />
 
         {fatal ? (
@@ -189,6 +189,7 @@ export default function HomeScreen({ navigation }) {
             ) : null}
           </View>
         )}
+        </ContentSheet>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom, backgroundColor: colors.bgElevated }]}>
@@ -208,7 +209,7 @@ export default function HomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, paddingTop: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20 },
   headerBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0 },
 });

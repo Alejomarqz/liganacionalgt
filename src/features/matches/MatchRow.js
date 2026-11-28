@@ -5,9 +5,9 @@ import React, { memo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useDesign } from '../../design/useDesign';
 import { Txt, TeamCrest, PressableScale, ScoreSlash } from '../../ui';
-import { useLiveMinute } from '../../api/clock';
+import { useLiveMinute, formatTime24 } from '../../api/clock';
 
-export const formatTime24 = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+export { formatTime24 };
 
 function Center({ match, minute, colors }) {
   if (match.isScheduled) {
@@ -43,17 +43,17 @@ function MatchRow({ match, onPress, last }) {
     <PressableScale onPress={onPress} scaleTo={0.99} accessibilityLabel={`${match.home?.name} contra ${match.away?.name}`}>
       <View style={[styles.row, { borderBottomColor: colors.divider }, last ? { borderBottomWidth: 0 } : null]}>
         <View style={[styles.side, { justifyContent: 'flex-end' }]}>
-          <Txt variant="bodyStrong" numberOfLines={2} align="right" color={homeLost ? colors.textSecondary : colors.text} style={styles.name}>
+          <Txt variant="bodyStrong" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78} align="right" color={homeLost ? colors.textSecondary : colors.text} style={styles.name}>
             {match.home?.name}
           </Txt>
-          <TeamCrest team={match.home} size={28} />
+          <TeamCrest team={match.home} size={26} />
         </View>
         <View style={styles.center}>
           <Center match={match} minute={minute} colors={colors} />
         </View>
         <View style={styles.side}>
-          <TeamCrest team={match.away} size={28} />
-          <Txt variant="bodyStrong" numberOfLines={2} color={awayLost ? colors.textSecondary : colors.text} style={styles.name}>
+          <TeamCrest team={match.away} size={26} />
+          <Txt variant="bodyStrong" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78} color={awayLost ? colors.textSecondary : colors.text} style={styles.name}>
             {match.away?.name}
           </Txt>
         </View>
@@ -63,10 +63,10 @@ function MatchRow({ match, onPress, last }) {
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth },
-  side: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  side: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8 },
   name: { flexShrink: 1, fontSize: 13.5 },
-  center: { width: 84, alignItems: 'center' },
+  center: { width: 72, alignItems: 'center' },
 });
 
 export default memo(

@@ -57,32 +57,64 @@ export function useCountdown(target) {
   };
 }
 
-/* ── Formato de fecha/hora en español Guatemala ── */
-const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+/* ── Hora oficial de la Liga: Guatemala (UTC-6, sin horario de verano) ──
+   Todas las horas se muestran en hora de Guatemala, igual que la web y la API,
+   sin depender de la zona horaria configurada en el teléfono. */
+const GT_OFFSET_MS = -6 * 3600 * 1000;
 
+/** Partes de fecha/hora en Guatemala para un Date (o ISO). */
+export function gt(date) {
+  if (!date) return null;
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return null;
+  const s = new Date(d.getTime() + GT_OFFSET_MS);
+  return {
+    year: s.getUTCFullYear(),
+    month: s.getUTCMonth(),
+    day: s.getUTCDate(),
+    weekday: s.getUTCDay(),
+    hours: s.getUTCHours(),
+    minutes: s.getUTCMinutes(),
+    key: `${s.getUTCFullYear()}-${s.getUTCMonth()}-${s.getUTCDate()}`,
+  };
+}
+
+export const DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+export const DAYS_LONG = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+export const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+/** "15:00" */
+export function formatTime24(date) {
+  const p = gt(date);
+  return p ? `${String(p.hours).padStart(2, '0')}:${String(p.minutes).padStart(2, '0')}` : '--:--';
+}
+
+/** "Sáb 28 nov" · long: "Sábado 28 nov" */
+export function formatDay(date, long = false) {
+  const p = gt(date);
+  if (!p) return '';
+  return `${(long ? DAYS_LONG : DAYS_SHORT)[p.weekday]} ${p.day} ${MONTHS[p.month]}`;
+}
+
+/** "Sábado 28" (encabezados de grupo) */
+export function formatDayHeader(date) {
+  const p = gt(date);
+  return p ? `${DAYS_LONG[p.weekday]} ${p.day}` : 'Por definir';
+}
+
+/** "Hoy · 15:00" / "Mañana · 15:00" / "Sáb 28 nov · 15:00" */
 export function formatKickoff(date) {
-  if (!date) return '';
-  const d = date instanceof Date ? date : new Date(date);
-  const today = new Date();
-  const tomorrow = new Date();
-  tomorrow.setDate(today.getDate() + 1);
-  const same = (a, b) => a.toDateString() === b.toDateString();
-  const hh = d.getHours();
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  const h12 = hh % 12 || 12;
-  const time = `${h12}:${mm} ${hh < 12 ? 'a. m.' : 'p. m.'}`;
-  if (same(d, today)) return `Hoy · ${time}`;
-  if (same(d, tomorrow)) return `Mañana · ${time}`;
-  return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]} · ${time}`;
+  const p = gt(date);
+  if (!p) return '';
+  const today = gt(new Date());
+  const tomorrow = gt(new Date(Date.now() + 86400000));
+  const time = formatTime24(date);
+  if (p.key === today.key) return `Hoy · ${time}`;
+  if (p.key === tomorrow.key) return `Mañana · ${time}`;
+  return `${formatDay(date)} · ${time}`;
 }
 
-export function formatTime(date) {
-  if (!date) return '';
-  const d = date instanceof Date ? date : new Date(date);
-  const hh = d.getHours();
-  return `${hh % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
+export const formatTime = formatTime24;
 
 // Guatemala: Apertura (jul–dic) · Clausura (ene–jun)
 export function seasonLabel(d = new Date()) {

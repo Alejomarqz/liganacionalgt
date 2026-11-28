@@ -5,12 +5,8 @@ import React, { memo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SoccerBall, MapPin } from 'phosphor-react-native';
 import { Txt, TeamCrest, LiveBadge, PressableScale, ScoreSlash, StadiumBackdrop } from '../../ui';
-import { useLiveMinute, useCountdown } from '../../api/clock';
+import { useLiveMinute, useCountdown, formatTime24, formatDay } from '../../api/clock';
 import { minuteText, shortName } from '../../api/matchCenter';
-import { formatTime24 } from '../matches/MatchRow';
-
-const DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const W = 'rgba(255,255,255,0.75)';
 
 const Scorers = ({ goals, align }) => (
@@ -39,7 +35,7 @@ const Countdown = ({ kickoff }) => {
 const Side = ({ team, onPress }) => (
   <PressableScale onPress={onPress} style={styles.side} accessibilityLabel={`Ver ${team?.name}`}>
     <TeamCrest team={team} size={70} />
-    <Txt variant="h3" color="#fff" align="center" numberOfLines={2}>
+    <Txt variant="h3" color="#fff" align="center" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
       {team?.name}
     </Txt>
   </PressableScale>
@@ -52,7 +48,7 @@ function MatchHeader({ model, onTeam, topInset = 0 }) {
   const awayGoals = model.goals.filter((g) => g.scoringSide === 'away');
   const k = m.kickoff;
   const rowsOfScorers = Math.max(homeGoals.length, awayGoals.length);
-  const height = 330 + rowsOfScorers * 18 + topInset;
+  const height = 360 + rowsOfScorers * 18 + topInset;
 
   return (
     <StadiumBackdrop uri={model.stadium?.image} height={height} tint={m.isLive ? 'live' : 'brand'}>
@@ -71,7 +67,7 @@ function MatchHeader({ model, onTeam, topInset = 0 }) {
                   {k ? formatTime24(k) : '--:--'}
                 </Txt>
                 <Txt variant="caption" color={W}>
-                  {k ? `${DAYS[k.getDay()]} ${k.getDate()} ${MONTHS[k.getMonth()]}` : ''}
+                  {formatDay(k, true)}
                 </Txt>
                 <Countdown kickoff={k} />
               </>

@@ -59,6 +59,9 @@ import {
 import WelcomeScreen
   from './components/Welcome';
 
+// v3: pantallas de borde a borde (foto bajo la barra de estado)
+const IMMERSIVE_ROUTES = new Set(['Home', 'Match', 'TeamScreen', 'Player', 'LigaTV', 'MyTeam']);
+
 // v3: Home rediseñado sobre la API Liga Nacional GT
 import HomeScreen
   from './src/screens/HomeScreen';
@@ -114,8 +117,9 @@ import WebviewScreen
 import TeamScreen
   from './src/screens/TeamProfileScreen';
 
+// v3: Mi club (hub del equipo favorito)
 import MyTeamScreen
-  from './components/MyTeam';
+  from './src/screens/MyClubScreen';
 
 // v3: Perfil de jugador nuevo
 import PlayerScreen
@@ -258,6 +262,16 @@ function AppInner() {
     React.useState(
       'Welcome',
     );
+
+  // v3: pantallas con foto arriba van de borde a borde (bajo la barra de estado)
+  const [
+    currentRoute,
+    setCurrentRoute,
+  ] =
+    React.useState('Welcome');
+
+  const immersive =
+    IMMERSIVE_ROUTES.has(currentRoute);
 
 
   const {
@@ -462,20 +476,20 @@ function AppInner() {
               colors.headerBg,
           },
         ]}
-        edges={[
-          'top',
-        ]}
+        edges={
+          immersive ? [] : ['top']
+        }
       >
 
         <StatusBar
           backgroundColor={
-            colors.statusBarBg
+            immersive ? 'transparent' : colors.statusBarBg
           }
           barStyle={
-            theme.statusBarStyle
+            immersive ? 'light-content' : theme.statusBarStyle
           }
           translucent={
-            false
+            immersive
           }
         />
 
@@ -523,6 +537,8 @@ function AppInner() {
 
                       routeNameRef.current =
                         rn;
+
+                      setCurrentRoute(rn);
 
 
                       await analytics()
@@ -574,6 +590,8 @@ function AppInner() {
 
                         routeNameRef.current =
                           currentName;
+
+                        setCurrentRoute(currentName);
 
 
                         await analytics()
