@@ -1,5 +1,5 @@
-// docs/firestore.rules — reglas para Liga TV y Juegos (fusionar con las reglas actuales)
-// Publicar en: Firebase Console → Firestore → Reglas
+// docs/firestore.rules — reglas COMPLETAS de la app (reemplazan todo lo que haya)
+// Publicar en: Firebase Console → Firestore → Reglas → pegar → Publicar
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -77,7 +77,6 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ───────── Ranking: total = quiniela + reto diario ─────────
     // ───────── Apodos únicos: quien lo reserva primero, es suyo ─────────
     match /nicknames/{key} {
       allow read: if signedIn();
@@ -95,6 +94,7 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
+    // ───────── Ranking: total = quiniela + reto diario ─────────
     match /quiniela_scores/{uid} {
       allow read: if signedIn();
       allow write: if signedIn()
@@ -149,6 +149,55 @@ service cloud.firestore {
         && resource.data.members.toSet().difference(request.resource.data.members.toSet()).hasOnly([request.auth.uid]);
 
       allow delete: if false;
+    }
+    // ───────── Seguir equipos (Mi club / perfil de equipo) ─────────
+    // teams/{teamId} = { followersCount }  ·  sube o baja de 1 en 1
+    match /teams/{teamId} {
+      allow read: if true;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['followersCount'])
+        && request.resource.data.followersCount is int
+        && request.resource.data.followersCount >= 0
+        && request.resource.data.followersCount <= 1;
+      allow update: if signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount'])
+        && request.resource.data.followersCount is int
+        && request.resource.data.followersCount >= 0
+        && (request.resource.data.followersCount - (resource.data.followersCount is int ? resource.data.followersCount : 0)) <= 1
+        && (request.resource.data.followersCount - (resource.data.followersCount is int ? resource.data.followersCount : 0)) >= -1;
+
+      match /followers/{uid} {
+        allow read: if true;
+        allow create: if signedIn() && uid == request.auth.uid && request.resource.data.uid == uid;
+        allow delete: if signedIn() && uid == request.auth.uid;
+        allow update: if false;
+      }
+    }
+
+    match /users/{uid}/follows/{teamId} {
+      allow read, delete: if signedIn() && uid == request.auth.uid;
+      allow create: if signedIn() && uid == request.auth.uid;
+      allow update: if false;
+    }
+
+    // ───────── Marcadores en vivo (los escribe el servidor, la app solo lee) ─────────
+    match /matches/{matchId} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /live_events/{channel}/{rest=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // ───────── Liga Manager (aún no publicado) ─────────
+    match /managers/{uid} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+    match /cards/{id} {
+      allow read: if true;
+      allow write: if false;
     }
   }
 }
