@@ -199,8 +199,25 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
     }
+    // ───────── Versión anterior de la app (se mantienen mientras la gente actualiza) ─────────
+    match /polls/{pollId} {
+      allow read: if true;
+      allow write: if signedIn();
+      match /votes/{userId} {
+        allow read: if true;
+        allow write: if signedIn() && userId == request.auth.uid;
+      }
+    }
+    match /followers/{docId} {
+      allow read, write: if signedIn();
+    }
+    match /matchFollowers/{docId} {
+      allow read, write: if signedIn();
+    }
+    match /users/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
+    // IMPORTANTE: NO agregar "match /{document=**}" — abriría TODO y anularía estas reglas.
   }
 }
-
-// Índices necesarios: docs/firestore.indexes.json
-// (Firebase también los sugiere con un enlace la primera vez que falta uno)
