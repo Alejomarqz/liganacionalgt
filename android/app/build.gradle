@@ -13,14 +13,14 @@ def hermesEnabledProp = project.hasProperty('hermesEnabled') ? project.property(
 android {
   ndkVersion rootProject.ext.ndkVersion
   buildToolsVersion rootProject.ext.buildToolsVersion
-  compileSdk 36
+  compileSdk rootProject.ext.compileSdkVersion
 
   namespace "com.liganacionalgt"
 
   defaultConfig {
     applicationId "com.liganacionalgt"
     minSdk 24
-    targetSdk 35
+    targetSdk rootProject.ext.targetSdkVersion
     versionCode vcode
     versionName "6.0.0"
     ndk { abiFilters "armeabi-v7a", "arm64-v8a", "x86_64" }
