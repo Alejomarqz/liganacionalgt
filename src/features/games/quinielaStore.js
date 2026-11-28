@@ -67,21 +67,22 @@ export async function savePick({ uid, seasonId, match, home, away }) {
 /* ─────────── Puntaje propio ─────────── */
 
 /**
- * Calcula mis puntos con los resultados finales y los publica para el ranking
- * (solo si cambiaron). Devuelve los totales para mostrarlos.
+ * Calcula mis puntos con los resultados finales, suma el reto diario y los
+ * publica para el ranking (solo si cambiaron). Devuelve los totales.
  */
-export function useMyScore({ uid, nick, seasonId, byRound, matches }) {
+export function useMyScore({ uid, nick, seasonId, byRound, matches, daily = { points: 0, wins: 0 } }) {
   const matchesById = useMemo(() => {
     const o = {};
     for (const m of matches) o[String(m.id)] = m;
     return o;
   }, [matches]);
-  const totals = useMemo(() => computeTotals(byRound, matchesById), [byRound, matchesById]);
+  const q = useMemo(() => computeTotals(byRound, matchesById), [byRound, matchesById]);
+  const totals = useMemo(() => ({ ...q, daily: daily.points, dailyWins: daily.wins, total: q.points + daily.points }), [q, daily.points, daily.wins]);
   const lastKey = useRef(null);
 
   useEffect(() => {
     if (!uid || !nick || seasonId == null || !matches.length) return;
-    const key = JSON.stringify([totals.points, totals.exact, totals.played, nick]);
+    const key = JSON.stringify([totals.total, totals.points, totals.exact, totals.played, totals.daily, nick]);
     if (lastKey.current === key) return;
     lastKey.current = key;
     db()
@@ -92,7 +93,10 @@ export function useMyScore({ uid, nick, seasonId, byRound, matches }) {
           uid,
           nick,
           seasonId,
+          total: totals.total,
           points: totals.points,
+          daily: totals.daily,
+          dailyWins: totals.dailyWins,
           exact: totals.exact,
           played: totals.played,
           rounds: totals.rounds,
@@ -101,9 +105,48 @@ export function useMyScore({ uid, nick, seasonId, byRound, matches }) {
         { merge: true },
       )
       .catch(() => {});
-  }, [uid, nick, seasonId, totals]);
+  }, [uid, nick, seasonId, totals, matches.length]);
 
   return totals;
+}
+
+/* ─────────── Reto diario (puntos al ranking) ─────────── */
+
+const DAILY = 'daily_results';
+/** Puntos del reto: 1er intento 6 … 6to intento 1 · fallo 0 */
+export const dailyPoints = (won, tries) => (won ? Math.max(1, 7 - tries) : 0);
+
+export async function submitDaily({ uid, date, won, tries, seasonId }) {
+  const ref = db().collection(DAILY).doc(`${uid}_${date}`);
+  const snap = await ref.get();
+  const exists = typeof snap.exists === 'function' ? snap.exists() : snap.exists;
+  if (exists) return;
+  await ref.set({ uid, date, won: Boolean(won), tries, points: dailyPoints(won, tries), seasonId: seasonId ?? null, createdAt: firestore.FieldValue.serverTimestamp() });
+}
+
+export function useMyDaily(uid) {
+  const [state, setState] = useState({ points: 0, wins: 0 });
+  useEffect(() => {
+    if (!uid) return undefined;
+    const unsub = db()
+      .collection(DAILY)
+      .where('uid', '==', uid)
+      .onSnapshot(
+        (snap) => {
+          let points = 0;
+          let wins = 0;
+          snap?.docs?.forEach((d) => {
+            const x = d.data();
+            points += x.points || 0;
+            wins += x.won ? 1 : 0;
+          });
+          setState({ points, wins });
+        },
+        () => {},
+      );
+    return () => unsub();
+  }, [uid]);
+  return state;
 }
 
 /* ─────────── Ranking nacional ─────────── */
@@ -115,8 +158,7 @@ export function useLeaderboard(seasonId, limit = 50) {
     const unsub = db()
       .collection(SCORES)
       .where('seasonId', '==', seasonId)
-      .orderBy('points', 'desc')
-      .orderBy('exact', 'desc')
+      .orderBy('total', 'desc')
       .limit(limit)
       .onSnapshot(
         (snap) => setState({ loading: false, rows: snap?.docs?.map((d) => d.data()) || [] }),
@@ -129,13 +171,14 @@ export function useLeaderboard(seasonId, limit = 50) {
 
 /** Mi posición nacional = cuántos tienen más puntos que yo + 1. */
 export function useMyRank(seasonId, points) {
+  // points = total (quiniela + reto)
   const [rank, setRank] = useState(null);
   const [total, setTotal] = useState(null);
   useEffect(() => {
     if (seasonId == null || points == null) return;
     let alive = true;
     const base = db().collection(SCORES).where('seasonId', '==', seasonId);
-    Promise.all([base.where('points', '>', points).count().get(), base.count().get()])
+    Promise.all([base.where('total', '>', points).count().get(), base.count().get()])
       .then(([above, all]) => {
         if (!alive) return;
         setRank(above.data().count + 1);
@@ -223,8 +266,8 @@ export function useLeagueTable(members = []) {
         const found = {};
         snaps.forEach((s) => s.docs.forEach((d) => (found[d.id] = d.data())));
         const rows = ids
-          .map((id) => found[id] || { uid: id, nick: 'Sin jugar aún', points: 0, exact: 0, played: 0 })
-          .sort((a, b) => b.points - a.points || b.exact - a.exact);
+          .map((id) => found[id] || { uid: id, nick: 'Sin jugar aún', total: 0, points: 0, exact: 0, played: 0 })
+          .sort((a, b) => (b.total ?? b.points ?? 0) - (a.total ?? a.points ?? 0) || (b.exact || 0) - (a.exact || 0));
         setState({ loading: false, rows });
       })
       .catch(() => alive && setState({ loading: false, rows: [] }));

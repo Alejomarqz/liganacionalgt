@@ -114,6 +114,7 @@ export const matchReminderId = (matchId) => `match-${matchId}`;
 
 /** Recordatorio de transmisión de Liga TV */
 export async function scheduleLigaTVReminder(tv, leadMin = 5) {
+  // tv: { startsAt: Date, title }
   if (!tv?.startsAt) return false;
   const when = tv.startsAt.getTime() - leadMin * 60000;
   if (when <= Date.now() + 5000) return false;

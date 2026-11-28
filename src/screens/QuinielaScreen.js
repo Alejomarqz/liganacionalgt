@@ -1,18 +1,17 @@
 // src/screens/QuinielaScreen.js
 // Quiniela de la jornada: pronostica el marcador de cada partido.
 // Se guarda solo, se cierra al pitazo y suma puntos con el resultado final.
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, View, StyleSheet } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { Alert, ScrollView, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CaretLeft, Minus, Plus, LockSimple, CheckCircle, Trophy } from 'phosphor-react-native';
 
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
 import { Txt, Surface, PressableScale, Pill, Slash, TeamCrest, SkeletonCard, EmptyState } from '../ui';
-import { useMatches } from '../api/liga';
 import { formatDayHeader, formatTime24, gt, seasonLabel } from '../api/clock';
-import { useGameIdentity } from '../features/games/identity';
-import { useMyPredictions, useMyScore, useMyRank, savePick } from '../features/games/quinielaStore';
+import { savePick } from '../features/games/quinielaStore';
+import { useGameStats } from '../features/games/useGameStats';
 import { scorePick, isOpen, POINTS } from '../features/games/scoring';
 
 const KIND = {
@@ -40,76 +39,73 @@ function Stepper({ value, onChange, disabled, colors }) {
 
 function PickCard({ match, saved, onSave, colors }) {
   const open = isOpen(match);
-  const [h, setH] = useState(saved?.home ?? 0);
-  const [a, setA] = useState(saved?.away ?? 0);
-  const [status, setStatus] = useState(saved ? 'saved' : 'idle');
-  const timer = useRef(null);
+  const [h, setH] = useState(0);
+  const [a, setA] = useState(0);
+  const [status, setStatus] = useState('idle'); // idle | saving | error
+  const locked = Boolean(saved);
 
-  // Si llega el pronóstico guardado desde Firestore, lo reflejamos
-  useEffect(() => {
-    if (saved && status !== 'dirty') {
-      setH(saved.home);
-      setA(saved.away);
-      setStatus('saved');
-    }
-  }, [saved?.home, saved?.away]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const change = (nh, na) => {
-    setH(nh);
-    setA(na);
-    setStatus('dirty');
-    clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      try {
-        await onSave(match, nh, na);
-        setStatus('saved');
-      } catch {
-        setStatus('error');
-      }
-    }, 600);
+  const confirm = () => {
+    Alert.alert(
+      'Confirmar pronóstico',
+      `${match.home?.name} ${h} – ${a} ${match.away?.name}\n\nUna vez confirmado ya no se puede cambiar.`,
+      [
+        { text: 'Revisar', style: 'cancel' },
+        {
+          text: 'Confirmar',
+          onPress: async () => {
+            setStatus('saving');
+            try {
+              await onSave(match, h, a);
+              setStatus('idle');
+            } catch {
+              setStatus('error');
+            }
+          },
+        },
+      ],
+    );
   };
-  useEffect(() => () => clearTimeout(timer.current), []);
 
   const result = match.isFinished && saved ? scorePick(saved, { home: match.score.home, away: match.score.away }) : null;
 
+  // Estado de la esquina superior derecha
+  let badge;
+  if (result) badge = <Pill tone={KIND[result.kind]?.tone || 'neutral'} label={`+${result.points} · ${KIND[result.kind]?.label || ''}`} />;
+  else if (locked)
+    badge = (
+      <View style={styles.badgeRow}>
+        <LockSimple size={13} color={colors.success} weight="fill" />
+        <Txt variant="caption" tone="success" style={{ fontFamily: 'Inter-SemiBold' }}>
+          Confirmado
+        </Txt>
+      </View>
+    );
+  else if (!open)
+    badge = (
+      <View style={styles.badgeRow}>
+        <LockSimple size={13} color={colors.textMuted} weight="fill" />
+        <Txt variant="caption" tone="muted">
+          {match.isLive ? 'En juego' : 'Cerrado'}
+        </Txt>
+      </View>
+    );
+  else
+    badge = (
+      <Txt variant="caption" tone="brand" style={{ fontFamily: 'Inter-SemiBold' }}>
+        Abierto
+      </Txt>
+    );
+
+  const editable = open && !locked;
+
   return (
     <Surface style={{ marginHorizontal: 16, paddingVertical: 14 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <Txt variant="overline" tone="secondary">
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 8 }}>
+        <Txt variant="overline" tone="secondary" numberOfLines={1} style={{ flex: 1 }}>
           {formatTime24(match.kickoff)}
           {match.stadium?.name ? ` · ${match.stadium.name}` : ''}
         </Txt>
-        {open ? (
-          status === 'saved' ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <CheckCircle size={14} color={colors.success} weight="fill" />
-              <Txt variant="caption" tone="success" style={{ fontFamily: 'Inter-SemiBold' }}>
-                Guardado
-              </Txt>
-            </View>
-          ) : status === 'dirty' ? (
-            <Txt variant="caption" tone="muted">
-              Guardando…
-            </Txt>
-          ) : status === 'error' ? (
-            <Txt variant="caption" tone="danger">
-              Sin conexión, reintenta
-            </Txt>
-          ) : (
-            <Txt variant="caption" tone="brand" style={{ fontFamily: 'Inter-SemiBold' }}>
-              Abierto
-            </Txt>
-          )
-        ) : match.isFinished && result ? (
-          <Pill tone={KIND[result.kind]?.tone || 'neutral'} label={`+${result.points} · ${KIND[result.kind]?.label || ''}`} />
-        ) : (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <LockSimple size={13} color={colors.textMuted} weight="fill" />
-            <Txt variant="caption" tone="muted">
-              {match.isLive ? 'En juego' : 'Cerrado'}
-            </Txt>
-          </View>
-        )}
+        {badge}
       </View>
 
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -120,11 +116,11 @@ function PickCard({ match, saved, onSave, colors }) {
           </Txt>
         </View>
 
-        {open ? (
+        {editable ? (
           <View style={styles.center}>
-            <Stepper value={h} onChange={(v) => change(v, a)} colors={colors} />
+            <Stepper value={h} onChange={setH} colors={colors} />
             <Slash width={4} height={26} />
-            <Stepper value={a} onChange={(v) => change(h, v)} colors={colors} />
+            <Stepper value={a} onChange={setA} colors={colors} />
           </View>
         ) : (
           <View style={[styles.center, { flexDirection: 'column', gap: 4 }]}>
@@ -132,9 +128,13 @@ function PickCard({ match, saved, onSave, colors }) {
               <Txt variant="h1" style={{ fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] }}>
                 {match.score.home ?? 0} – {match.score.away ?? 0}
               </Txt>
+            ) : locked ? (
+              <Txt variant="h1" tone="brand" style={{ fontSize: 30, lineHeight: 34, fontVariant: ['tabular-nums'] }}>
+                {saved.home} – {saved.away}
+              </Txt>
             ) : null}
-            <Txt variant="caption" tone="secondary">
-              {saved ? `Tu pronóstico: ${saved.home} – ${saved.away}` : 'Sin pronóstico'}
+            <Txt variant="caption" tone="secondary" align="center">
+              {locked ? (match.isFinished || match.isLive ? `Tu pronóstico: ${saved.home} – ${saved.away}` : 'Tu pronóstico') : 'Sin pronóstico'}
             </Txt>
           </View>
         )}
@@ -146,6 +146,20 @@ function PickCard({ match, saved, onSave, colors }) {
           </Txt>
         </View>
       </View>
+
+      {editable ? (
+        <PressableScale onPress={confirm} disabled={status === 'saving'} style={[styles.confirm, { backgroundColor: colors.primaryStrong }]}>
+          <CheckCircle size={17} color="#fff" weight="fill" />
+          <Txt variant="bodyStrong" color="#fff" style={{ fontFamily: 'Inter-Bold' }}>
+            {status === 'saving' ? 'Guardando…' : 'Confirmar pronóstico'}
+          </Txt>
+        </PressableScale>
+      ) : null}
+      {status === 'error' ? (
+        <Txt variant="caption" tone="danger" align="center" style={{ marginTop: 8 }}>
+          No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.
+        </Txt>
+      ) : null}
     </Surface>
   );
 }
@@ -153,12 +167,7 @@ function PickCard({ match, saved, onSave, colors }) {
 export default function QuinielaScreen({ navigation, route }) {
   const { colors, space } = useDesign();
   const insets = useSafeAreaInsets();
-  const { uid, nick, ready } = useGameIdentity();
-  const matchesQ = useMatches();
-  const seasonId = matchesQ.seasonId;
-  const preds = useMyPredictions(uid);
-  const totals = useMyScore({ uid, nick, seasonId, byRound: preds.byRound, matches: matchesQ.matches });
-  const { rank, total } = useMyRank(seasonId, ready && !preds.loading ? totals.points : null);
+  const { uid, ready, matchesQ, seasonId, preds, totals, rank, totalPlayers: total } = useGameStats({ withBoard: true });
 
   // Jornadas: por defecto la del próximo partido abierto (o la que pidió quien nos abrió)
   const rounds = useMemo(() => {
@@ -225,7 +234,7 @@ export default function QuinielaScreen({ navigation, route }) {
         <Surface style={{ marginHorizontal: 16, marginTop: 18, flexDirection: 'row' }}>
           {[
             [roundPoints, 'Pts jornada', 'brand'],
-            [totals.points, 'Pts torneo', 'primary'],
+            [totals.total, 'Pts totales', 'primary'],
             [rank ? `#${rank}` : '–', total ? `de ${total}` : 'Posición', 'primary'],
           ].map(([v, l, tone], i) => (
             <View key={l} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i ? StyleSheet.hairlineWidth : 0, borderLeftColor: colors.divider }}>
@@ -253,7 +262,7 @@ export default function QuinielaScreen({ navigation, route }) {
 
         {openCount ? (
           <Txt variant="caption" tone="secondary" style={{ paddingHorizontal: 20, paddingBottom: 6 }}>
-            Llevas {pickedOpen} de {openCount} pronósticos · se cierran al pitazo de cada partido
+            Llevas {pickedOpen} de {openCount} pronósticos confirmados · una vez confirmados no se cambian
           </Txt>
         ) : null}
 
@@ -296,6 +305,8 @@ const styles = StyleSheet.create({
   team: { flex: 1, alignItems: 'center', gap: 8 },
   center: { width: 150, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14 },
   stepBtn: { width: 34, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  confirm: { marginTop: 14, height: 44, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth },
   cta: { height: 50, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
 });

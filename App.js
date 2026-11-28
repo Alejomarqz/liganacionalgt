@@ -60,7 +60,7 @@ import WelcomeScreen
   from './components/Welcome';
 
 // v3: pantallas de borde a borde (foto bajo la barra de estado)
-const IMMERSIVE_ROUTES = new Set(['Home', 'Match', 'TeamScreen', 'Player', 'LigaTV', 'MyTeam']);
+const IMMERSIVE_ROUTES = new Set(['Home', 'Match', 'TeamScreen', 'Player', 'LigaTV', 'MyTeam', 'Games']);
 
 // v3: Home rediseñado sobre la API Liga Nacional GT
 import HomeScreen

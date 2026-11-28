@@ -10,6 +10,9 @@ import { hitSlop } from '../design/tokens';
 import { Txt, Surface, PressableScale, Slash, TeamCrest, SkeletonCard, EmptyState, StadiumBackdrop } from '../ui';
 import { useScorers } from '../api/liga';
 import { MAX_TRIES, BLUR_BY_TRY, buildPool, loadState, saveState, pickAnswer, compare, finishDay, shareText, todayKey } from '../features/games/daily';
+import { submitDaily, dailyPoints } from '../features/games/quinielaStore';
+import { getUid } from '../features/games/identity';
+import { useMatches } from '../api/liga';
 
 const norm = (s = '') => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
@@ -52,6 +55,7 @@ export default function DailyPlayerScreen({ navigation }) {
   const { colors, space } = useDesign();
   const insets = useSafeAreaInsets();
   const scorers = useScorers();
+  const { seasonId } = useMatches();
   const pool = useMemo(() => buildPool(scorers.rows), [scorers.rows]);
   const [state, setState] = useState(null);
   const [query, setQuery] = useState('');
@@ -74,6 +78,25 @@ export default function DailyPlayerScreen({ navigation }) {
     setState(next);
     saveState(next);
   }, [state, answer, today?.answerId]);
+
+  // Enviar el resultado del día al ranking (y reintentar si quedó pendiente)
+  useEffect(() => {
+    if (!state || !today?.done || today.submitted) return;
+    let alive = true;
+    (async () => {
+      try {
+        const uid = await getUid();
+        await submitDaily({ uid, date: todayKey(), won: today.won, tries: today.tries, seasonId });
+        if (!alive) return;
+        const next = { ...state, days: { ...state.days, [todayKey()]: { ...today, submitted: true } } };
+        setState(next);
+        saveState(next);
+      } catch {}
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [state, today, seasonId]);
 
   const suggestions = useMemo(() => {
     const q = norm(query.trim());
@@ -163,8 +186,8 @@ export default function DailyPlayerScreen({ navigation }) {
                     {done ? answer.name : `Intento ${Math.min(tries + 1, MAX_TRIES)} de ${MAX_TRIES}`}
                   </Txt>
                   {done ? (
-                    <Txt variant="caption" color="rgba(255,255,255,0.8)">
-                      {won ? `¡Lo adivinaste en ${tries}!` : 'Mañana hay otro jugador'}
+                    <Txt variant="caption" color="rgba(255,255,255,0.85)">
+                      {won ? `¡Lo adivinaste en ${tries}! +${dailyPoints(true, tries)} pts al ranking` : 'Mañana hay otro jugador'}
                     </Txt>
                   ) : null}
                 </View>
@@ -187,7 +210,7 @@ export default function DailyPlayerScreen({ navigation }) {
               </Surface>
             ) : (
               <Txt variant="caption" tone="secondary" style={{ paddingHorizontal: 20 }}>
-                Es uno de los goleadores del torneo. Con cada fallo recibes una pista y la foto se aclara.
+                Es uno de los goleadores del torneo. Con cada fallo recibes una pista y la foto se aclara. Acertar suma al ranking: 6 pts al primer intento, 1 pt al sexto.
               </Txt>
             )}
 

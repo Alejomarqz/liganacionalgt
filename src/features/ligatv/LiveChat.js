@@ -33,18 +33,39 @@ async function getNick() {
   return n;
 }
 
-const Message = memo(({ m, colors }) => (
-  <View style={styles.msg}>
-    <Txt variant="caption" color={colorFor(m.uid)} style={{ fontFamily: 'Inter-Bold' }}>
-      {m.nick}{' '}
-      <Txt variant="body" color={colors.text}>
-        {m.text}
-      </Txt>
-    </Txt>
-  </View>
-));
+// Mensaje con avatar de iniciales; los conductores (admins) llevan insignia
+const Message = memo(({ m, colors, isAdmin }) => {
+  const c = isAdmin ? colors.primaryStrong : colorFor(m.uid);
+  const initials = String(m.nick || '?').replace(/[^A-Za-zÁÉÍÓÚÑáéíóúñ0-9 ]/g, '').trim().split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
+  return (
+    <View style={[styles.msg, isAdmin ? { backgroundColor: colors.primarySoft, borderRadius: 12, paddingHorizontal: 8, marginHorizontal: -8 } : null]}>
+      <View style={[styles.avatar, { backgroundColor: c }]}>
+        <Txt variant="overline" color="#fff" style={{ fontSize: 10, letterSpacing: 0 }}>
+          {initials}
+        </Txt>
+      </View>
+      <View style={{ flex: 1 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Txt variant="caption" color={isAdmin ? colors.primary : c} style={{ fontFamily: 'Inter-Bold' }}>
+            {m.nick}
+          </Txt>
+          {isAdmin ? (
+            <View style={[styles.badge, { backgroundColor: colors.primaryStrong }]}>
+              <Txt variant="overline" color="#fff" style={{ fontSize: 8.5, letterSpacing: 0.6 }}>
+                Liga TV
+              </Txt>
+            </View>
+          ) : null}
+        </View>
+        <Txt variant="body" color={colors.text} style={{ fontSize: 14 }}>
+          {m.text}
+        </Txt>
+      </View>
+    </View>
+  );
+});
 
-function LiveChat({ streamId = 'main' }) {
+function LiveChat({ streamId = 'main', admins = [], header = null }) {
   const { colors, space, radius } = useDesign();
   const [msgs, setMsgs] = useState([]);
   const [text, setText] = useState('');
@@ -93,7 +114,8 @@ function LiveChat({ streamId = 'main' }) {
         inverted
         data={msgs}
         keyExtractor={(m) => m.id}
-        renderItem={({ item }) => <Message m={item} colors={colors} />}
+        renderItem={({ item }) => <Message m={item} colors={colors} isAdmin={admins.includes(item.uid)} />}
+        ListFooterComponent={header}
         contentContainerStyle={{ paddingHorizontal: space[4], paddingVertical: space[2] }}
         ListEmptyComponent={
           <Txt variant="caption" tone="muted" align="center" style={{ padding: space[6], transform: [{ scaleY: -1 }] }}>
@@ -126,7 +148,9 @@ function LiveChat({ streamId = 'main' }) {
 }
 
 const styles = StyleSheet.create({
-  msg: { paddingVertical: 4 },
+  msg: { flexDirection: 'row', gap: 10, paddingVertical: 6 },
+  avatar: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginTop: 2 },
+  badge: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderTopWidth: StyleSheet.hairlineWidth },
   input: { flex: 1, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 11 : 8, fontFamily: 'Inter-Regular', fontSize: 14 },
   send: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },

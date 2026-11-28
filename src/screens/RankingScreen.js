@@ -8,10 +8,10 @@ import { CaretLeft, PencilSimple, Plus, SignIn, ShareNetwork, Crown, UsersThree,
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
 import { Txt, Surface, PressableScale, Tabs, Slash, SkeletonCard, EmptyState, SectionHeader } from '../ui';
-import { useMatches } from '../api/liga';
 import { seasonLabel } from '../api/clock';
-import { useGameIdentity, NICK_MAX } from '../features/games/identity';
-import { useMyPredictions, useMyScore, useMyRank, useLeaderboard, useMyLeagues, useLeagueTable, createLeague, joinLeague, leaveLeague } from '../features/games/quinielaStore';
+import { NICK_MAX } from '../features/games/identity';
+import { useMyLeagues, useLeagueTable, createLeague, joinLeague, leaveLeague } from '../features/games/quinielaStore';
+import { useGameStats } from '../features/games/useGameStats';
 
 const TABS = [
   { key: 'national', label: 'Nacional' },
@@ -53,11 +53,11 @@ function RankRow({ pos, row, me, colors, last }) {
         {row.nick || 'Afición'}
         {me ? '  (tú)' : ''}
       </Txt>
-      <Txt variant="caption" tone="muted" style={{ width: 64, textAlign: 'center' }}>
-        {row.exact || 0} exactos
+      <Txt variant="caption" tone="muted" style={{ width: 92, textAlign: 'right' }} numberOfLines={1}>
+        Q {row.points || 0} · R {row.daily || 0}
       </Txt>
       <Txt variant="points" style={{ width: 44, textAlign: 'right', fontSize: 17 }}>
-        {row.points || 0}
+        {row.total ?? row.points ?? 0}
       </Txt>
     </View>
   );
@@ -90,13 +90,7 @@ export default function RankingScreen({ navigation }) {
   const { colors, space } = useDesign();
   const insets = useSafeAreaInsets();
   const [tab, setTab] = useState('national');
-  const { uid, nick, ready, rename } = useGameIdentity();
-  const matchesQ = useMatches();
-  const seasonId = matchesQ.seasonId;
-  const preds = useMyPredictions(uid);
-  const totals = useMyScore({ uid, nick, seasonId, byRound: preds.byRound, matches: matchesQ.matches });
-  const { rank, total } = useMyRank(seasonId, ready && !preds.loading ? totals.points : null);
-  const board = useLeaderboard(seasonId, 50);
+  const { uid, nick, rename, seasonId, totals, rank, totalPlayers: total, board } = useGameStats({ withBoard: true });
   const mine = useMyLeagues(uid);
 
   const [editing, setEditing] = useState(false);
@@ -181,8 +175,8 @@ export default function RankingScreen({ navigation }) {
             <View style={{ flexDirection: 'row' }}>
               {[
                 [rank ? `#${rank}` : '–', total ? `de ${total} jugadores` : 'Posición'],
-                [totals.points, 'Puntos'],
-                [totals.exact, 'Exactos'],
+                [totals.total, 'Puntos'],
+                [`${totals.points} · ${totals.daily}`, 'Quiniela · Reto'],
               ].map(([v, l], i) => (
                 <View key={l} style={{ flex: 1, alignItems: 'center', borderLeftWidth: i ? StyleSheet.hairlineWidth : 0, borderLeftColor: colors.divider }}>
                   <Txt variant="h1" tone={i === 0 ? 'brand' : 'primary'} style={{ fontSize: 24, lineHeight: 28, fontVariant: ['tabular-nums'] }}>
@@ -217,7 +211,7 @@ export default function RankingScreen({ navigation }) {
                 ))}
               </Surface>
             ) : (
-              <EmptyState title="El ranking arranca pronto" message="Los puntos aparecen cuando terminen los primeros partidos pronosticados." />
+              <EmptyState title="El ranking arranca pronto" message="Pronostica la jornada o juega el reto diario para aparecer aquí." />
             )
           ) : (
             <>

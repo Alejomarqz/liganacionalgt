@@ -22,7 +22,7 @@ const IconBtn = ({ onPress, children, label }) => (
   </PressableScale>
 );
 
-function LigaTVPlayer({ source, poster, title, autoPlay = true, onStatus }, ref) {
+function LigaTVPlayer({ source, poster, title, autoPlay = true, live = true, onStatus }, ref) {
   const video = useRef(null);
   const [paused, setPaused] = useState(!autoPlay);
   const [muted, setMuted] = useState(false);
@@ -87,7 +87,7 @@ function LigaTVPlayer({ source, poster, title, autoPlay = true, onStatus }, ref)
       <Video
         key={reloadKey}
         ref={video}
-        source={{ uri: source, type: 'm3u8', bufferConfig: { minBufferMs: 4000, maxBufferMs: 20000, bufferForPlaybackMs: 1500, bufferForPlaybackAfterRebufferMs: 3000 } }}
+        source={{ uri: source, ...(/\.m3u8($|\?)/i.test(source) ? { type: 'm3u8' } : {}), bufferConfig: { minBufferMs: 4000, maxBufferMs: 20000, bufferForPlaybackMs: 1500, bufferForPlaybackAfterRebufferMs: 3000 } }}
         style={StyleSheet.absoluteFill}
         resizeMode="contain"
         paused={paused}
@@ -107,7 +107,7 @@ function LigaTVPlayer({ source, poster, title, autoPlay = true, onStatus }, ref)
         }}
         onBuffer={({ isBuffering }) => setBuffering(isBuffering)}
         onError={handleError}
-        onEnd={() => handleError({ reason: 'ended' })}
+        onEnd={() => (live ? handleError({ reason: 'ended' }) : setPaused(true))}
       />
 
       {/* Poster mientras carga */}
@@ -143,7 +143,7 @@ function LigaTVPlayer({ source, poster, title, autoPlay = true, onStatus }, ref)
       {controls && !error ? (
         <>
           <LinearGradient colors={['rgba(0,0,0,0.65)', 'transparent']} style={styles.top} pointerEvents="box-none">
-            <LiveBadge solid />
+            {live ? <LiveBadge /> : null}
             <Txt variant="bodyStrong" color="#fff" numberOfLines={1} style={{ flex: 1, marginLeft: 10 }}>
               {title}
             </Txt>

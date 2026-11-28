@@ -27,8 +27,29 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Programación y episodios: lectura pública, se editan desde la consola
+    match /liga_tv_shows/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Reacciones: solo incrementos pequeños sobre los 5 contadores
+    function smallInc(k) {
+      return !(k in request.resource.data)
+        || (request.resource.data[k] is int
+            && request.resource.data[k] >= (k in resource.data ? resource.data[k] : 0)
+            && request.resource.data[k] <= (k in resource.data ? resource.data[k] : 0) + 20);
+    }
+    match /liga_tv_reactions/{doc} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['goal', 'fire', 'clap', 'wow', 'heart']);
+      allow update: if signedIn()
+        && request.resource.data.keys().hasOnly(['goal', 'fire', 'clap', 'wow', 'heart'])
+        && smallInc('goal') && smallInc('fire') && smallInc('clap') && smallInc('wow') && smallInc('heart');
+    }
+
     // ───────── Quiniela: pronósticos ─────────
-    // Doc: {uid}_{roundId}. Cada escritura cambia UN partido y solo antes del pitazo.
+    // Doc: {uid}_{roundId}. Cada escritura AGREGA un partido, solo antes del pitazo, y no se puede modificar después.
     function validPick(p) {
       return p.home is int && p.away is int
         && p.home >= 0 && p.home <= 20 && p.away >= 0 && p.away <= 20
@@ -44,20 +65,19 @@ service cloud.firestore {
         && request.resource.data.picks.keys().size() == 1
         && validPick(request.resource.data.picks[request.resource.data.picks.keys()[0]]);
 
+      // Se agrega un partido NUEVO a la jornada; un pronóstico confirmado no se cambia
       allow update: if signedIn()
         && resource.data.uid == request.auth.uid
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.roundId == resource.data.roundId
         && request.resource.data.picks.diff(resource.data.picks).affectedKeys().size() == 1
-        && validPick(request.resource.data.picks[request.resource.data.picks.diff(resource.data.picks).affectedKeys().toList()[0]])
-        // un partido ya empezado no se puede cambiar
-        && (!(request.resource.data.picks.diff(resource.data.picks).affectedKeys().toList()[0] in resource.data.picks)
-            || request.time < resource.data.picks[request.resource.data.picks.diff(resource.data.picks).affectedKeys().toList()[0]].kickoff);
+        && request.resource.data.picks.diff(resource.data.picks).addedKeys().size() == 1
+        && validPick(request.resource.data.picks[request.resource.data.picks.diff(resource.data.picks).addedKeys().toList()[0]]);
 
       allow delete: if false;
     }
 
-    // ───────── Quiniela: puntajes (ranking) ─────────
+    // ───────── Ranking: total = quiniela + reto diario ─────────
     match /quiniela_scores/{uid} {
       allow read: if signedIn();
       allow write: if signedIn()
@@ -70,9 +90,26 @@ service cloud.firestore {
         && request.resource.data.points >= 0
         && request.resource.data.points <= 2000
         && request.resource.data.exact is int
-        && request.resource.data.exact >= 0
         && request.resource.data.points >= request.resource.data.exact * 5
-        && request.resource.data.keys().hasOnly(['uid', 'nick', 'seasonId', 'points', 'exact', 'played', 'rounds', 'updatedAt']);
+        && request.resource.data.daily is int
+        && request.resource.data.daily >= 0
+        && request.resource.data.daily <= 2200
+        && request.resource.data.total == request.resource.data.points + request.resource.data.daily
+        && request.resource.data.keys().hasOnly(['uid', 'nick', 'seasonId', 'total', 'points', 'daily', 'dailyWins', 'exact', 'played', 'rounds', 'updatedAt']);
+    }
+
+    // ───────── Reto diario: un resultado por persona y día, sin cambios ─────────
+    match /daily_results/{docId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && docId == request.auth.uid + '_' + request.resource.data.date
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.tries is int
+        && request.resource.data.tries >= 1 && request.resource.data.tries <= 6
+        && request.resource.data.won is bool
+        && request.resource.data.points == (request.resource.data.won ? 7 - request.resource.data.tries : 0);
+      allow update, delete: if false;
     }
 
     // ───────── Ligas con amigos ─────────
