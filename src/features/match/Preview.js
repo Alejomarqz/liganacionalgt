@@ -14,12 +14,12 @@ const FormCard = ({ team, form, position, colors }) => (
         {team?.short || team?.name}
       </Txt>
     </View>
-    <FormStrip sequence={form?.sequence} size={20} />
+    <FormStrip sequence={form?.sequence} size={16} />
     <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
       <Txt variant="caption" tone="muted">
         Pts últimos {form?.sample ?? 5}
       </Txt>
-      <Txt variant="caption" style={{ fontFamily: 'Poppins-Bold' }}>
+      <Txt variant="caption" style={{ fontFamily: 'Inter-Bold' }}>
         {form?.points ?? '–'}
       </Txt>
     </View>
@@ -28,7 +28,7 @@ const FormCard = ({ team, form, position, colors }) => (
         <Txt variant="caption" tone="muted">
           Posición
         </Txt>
-        <Txt variant="caption" style={{ fontFamily: 'Poppins-Bold' }}>
+        <Txt variant="caption" style={{ fontFamily: 'Inter-Bold' }}>
           {position.projected ?? position.official}°
           {position.change ? (
             <Txt variant="caption" color={position.change > 0 ? colors.success : colors.danger}>
@@ -114,7 +114,7 @@ function Preview({ model, onMatch, onTeam }) {
                   </Txt>
                   <TeamCrest team={m.home} size={18} />
                 </View>
-                <Txt variant="number" style={{ width: 52, textAlign: 'center', fontFamily: 'Poppins-ExtraBold' }}>
+                <Txt variant="number" style={{ width: 52, textAlign: 'center', fontFamily: 'InterDisplay-ExtraBold' }}>
                   {m.score.home ?? '-'}–{m.score.away ?? '-'}
                 </Txt>
                 <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -141,7 +141,7 @@ function Preview({ model, onMatch, onTeam }) {
                     <Txt variant="caption" numberOfLines={1} style={{ flex: 1 }}>
                       {s.player?.name}
                     </Txt>
-                    <Txt variant="caption" style={{ fontFamily: 'Poppins-Bold' }}>
+                    <Txt variant="caption" style={{ fontFamily: 'Inter-Bold' }}>
                       {s.goals}
                     </Txt>
                   </View>
@@ -171,7 +171,7 @@ function Preview({ model, onMatch, onTeam }) {
                     <Txt variant="number" tone="secondary" style={{ width: 34, textAlign: 'center' }}>
                       {r.played}
                     </Txt>
-                    <Txt variant="number" style={{ width: 36, textAlign: 'center', fontFamily: 'Poppins-ExtraBold' }}>
+                    <Txt variant="number" style={{ width: 36, textAlign: 'center', fontFamily: 'InterDisplay-ExtraBold' }}>
                       {r.points}
                     </Txt>
                   </View>

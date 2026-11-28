@@ -13,8 +13,8 @@ const Bar = ({ ratio, color, align }) => {
   }, [ratio, v]);
   const s = useAnimatedStyle(() => ({ width: `${v.value * 100}%` }));
   return (
-    <View style={{ flex: 1, height: 6, borderRadius: 3, overflow: 'hidden', alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
-      <Animated.View style={[{ height: '100%', borderRadius: 3, backgroundColor: color }, s]} />
+    <View style={{ flex: 1, height: 6, overflow: 'hidden', alignItems: align === 'right' ? 'flex-end' : 'flex-start' }}>
+      <Animated.View style={[{ height: '100%', backgroundColor: color, transform: [{ skewX: '-30deg' }] }, s]} />
     </View>
   );
 };
@@ -28,24 +28,24 @@ function StatRow({ row, colors }) {
   return (
     <View style={{ gap: 8 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Txt variant="number" style={{ fontFamily: hWin ? 'Poppins-ExtraBold' : 'Poppins-Medium', minWidth: 40 }} color={hWin ? colors.text : colors.textSecondary}>
+        <Txt variant="number" style={{ fontFamily: hWin ? 'InterDisplay-ExtraBold' : 'Inter-Medium', minWidth: 40 }} color={hWin ? colors.text : colors.textSecondary}>
           {row.home}
           {row.unit}
         </Txt>
         <Txt variant="caption" tone="secondary">
           {row.label}
         </Txt>
-        <Txt variant="number" align="right" style={{ fontFamily: aWin ? 'Poppins-ExtraBold' : 'Poppins-Medium', minWidth: 40 }} color={aWin ? colors.text : colors.textSecondary}>
+        <Txt variant="number" align="right" style={{ fontFamily: aWin ? 'InterDisplay-ExtraBold' : 'Inter-Medium', minWidth: 40 }} color={aWin ? colors.text : colors.textSecondary}>
           {row.away}
           {row.unit}
         </Txt>
       </View>
       <View style={{ flexDirection: 'row', gap: 6 }}>
-        <View style={{ flex: 1, backgroundColor: colors.surfaceHigh, borderRadius: 3 }}>
-          <Bar ratio={hr} color={hWin ? colors.primary : colors.textMuted} align="right" />
+        <View style={{ flex: 1, backgroundColor: colors.surfaceHigh }}>
+          <Bar ratio={hr} color={hWin ? colors.primaryStrong : colors.textMuted} align="right" />
         </View>
-        <View style={{ flex: 1, backgroundColor: colors.surfaceHigh, borderRadius: 3 }}>
-          <Bar ratio={ar} color={aWin ? colors.live : colors.textMuted} align="left" />
+        <View style={{ flex: 1, backgroundColor: colors.surfaceHigh }}>
+          <Bar ratio={ar} color={aWin ? colors.text : colors.textMuted} align="left" />
         </View>
       </View>
     </View>

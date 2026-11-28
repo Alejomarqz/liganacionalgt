@@ -30,37 +30,38 @@ const Card = memo(function Card({ item, index, onPress }) {
   const leader = index === 0;
   const body = (
     <>
+      {leader ? <View pointerEvents="none" style={{ position: 'absolute', top: -20, bottom: -20, left: '58%', width: 34, backgroundColor: 'rgba(255,255,255,0.10)', transform: [{ skewX: '-20deg' }] }} /> : null}
       <View style={styles.rank}>
-        {leader ? <Crown size={14} weight="fill" color="#5A3B00" /> : null}
-        <Txt variant="overline" color={leader ? '#5A3B00' : colors.textMuted}>
+        {leader ? <Crown size={14} weight="fill" color="rgba(255,255,255,0.8)" /> : null}
+        <Txt variant="overline" color={leader ? 'rgba(255,255,255,0.8)' : colors.textMuted}>
           {leader ? 'Líder' : `#${item.position || index + 1}`}
         </Txt>
       </View>
       <Photo player={item.player} team={item.team} size={58} colors={colors} />
-      <Txt variant="bodyStrong" numberOfLines={1} align="center" color={leader ? '#2B1C00' : colors.text} style={{ marginTop: 8 }}>
+      <Txt variant="bodyStrong" numberOfLines={1} align="center" color={leader ? '#fff' : colors.text} style={{ marginTop: 8 }}>
         {item.player.name}
       </Txt>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
         <TeamCrest team={item.team} size={14} />
-        <Txt variant="caption" numberOfLines={1} color={leader ? '#5A3B00' : colors.textMuted}>
+        <Txt variant="caption" numberOfLines={1} color={leader ? 'rgba(255,255,255,0.8)' : colors.textMuted}>
           {item.team?.short}
         </Txt>
       </View>
-      <Txt variant="score" color={leader ? '#2B1C00' : colors.text} style={{ fontSize: 30, lineHeight: 34, marginTop: 4 }}>
+      <Txt variant="score" color={leader ? '#fff' : colors.text} style={{ fontSize: 30, lineHeight: 34, marginTop: 4 }}>
         {item.goals}
       </Txt>
-      <Txt variant="overline" color={leader ? '#5A3B00' : colors.textMuted} style={{ fontSize: 9 }}>
+      <Txt variant="overline" color={leader ? 'rgba(255,255,255,0.8)' : colors.textMuted} style={{ fontSize: 9 }}>
         goles
       </Txt>
     </>
   );
 
-  const shell = { width: 132, borderRadius: radius.lg, padding: 14, alignItems: 'center', gap: 2 };
+  const shell = { width: 132, borderRadius: radius.lg, overflow: 'hidden', padding: 14, alignItems: 'center', gap: 2 };
 
   return (
     <PressableScale onPress={() => onPress?.(item)}>
       {leader ? (
-        <LinearGradient colors={colors.goldGradient} style={shell}>
+        <LinearGradient colors={[colors.primaryStrong, '#1E3FD8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={shell}>
           {body}
         </LinearGradient>
       ) : (

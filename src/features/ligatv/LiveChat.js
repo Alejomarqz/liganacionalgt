@@ -35,7 +35,7 @@ async function getNick() {
 
 const Message = memo(({ m, colors }) => (
   <View style={styles.msg}>
-    <Txt variant="caption" color={colorFor(m.uid)} style={{ fontFamily: 'Poppins-Bold' }}>
+    <Txt variant="caption" color={colorFor(m.uid)} style={{ fontFamily: 'Inter-Bold' }}>
       {m.nick}{' '}
       <Txt variant="body" color={colors.text}>
         {m.text}
@@ -128,7 +128,7 @@ function LiveChat({ streamId = 'main' }) {
 const styles = StyleSheet.create({
   msg: { paddingVertical: 4 },
   inputRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderTopWidth: StyleSheet.hairlineWidth },
-  input: { flex: 1, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 11 : 8, fontFamily: 'Poppins-Regular', fontSize: 14 },
+  input: { flex: 1, paddingHorizontal: 16, paddingVertical: Platform.OS === 'ios' ? 11 : 8, fontFamily: 'Inter-Regular', fontSize: 14 },
   send: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
 });
 

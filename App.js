@@ -91,8 +91,12 @@ import ScheduleScreen
 import Calendar
   from './components/Calendar';
 
+// v3: Tabla nueva (General / Local / Visita)
 import PositionsScreen
-  from './components/Positions';
+  from './src/screens/TableScreen';
+
+import GamesScreen
+  from './src/screens/GamesScreen';
 
 import ActiveNotificationsScreen
   from './components/ActiveNotifications';
@@ -714,6 +718,15 @@ function AppInner() {
                     }
                   />
 
+
+                  {/* JUEGOS (quiniela y reto diario) */}
+
+                  <MainStack.Screen
+                    name="Games"
+                    component={
+                      GamesScreen
+                    }
+                  />
 
                   {/* LIGA TV (transmisiones en vivo propias) */}
 

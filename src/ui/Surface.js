@@ -14,7 +14,7 @@ function Surface({ onPress, level = 1, padded = true, tone = 'surface', radiusKe
     borderColor: colors.border,
     padding: padded ? space[4] : 0,
     overflow: 'hidden',
-    ...elevation(level),
+    ...(colors.mode === 'dark' ? null : elevation(level)),
   };
   if (onPress) {
     return (

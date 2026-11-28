@@ -83,3 +83,8 @@ export function formatTime(date) {
   const hh = d.getHours();
   return `${hh % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+
+// Guatemala: Apertura (jul–dic) · Clausura (ene–jun)
+export function seasonLabel(d = new Date()) {
+  return `${d.getMonth() >= 6 ? 'Apertura' : 'Clausura'} ${d.getFullYear()}`;
+}

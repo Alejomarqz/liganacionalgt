@@ -1,76 +1,61 @@
 // src/features/matches/MatchRow.js
-// Fila compacta de partido (estilo apps deportivas top): escudos, marcador
-// tabular, estado/minuto a la derecha. Ganador resaltado.
+// Fila de partido estilo liga oficial: local a la izquierda, visitante a la
+// derecha y en el centro la hora o el marcador "2 / 1".
 import React, { memo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useDesign } from '../../design/useDesign';
-import { Txt, TeamCrest, PressableScale, PulseDot } from '../../ui';
-import { useLiveMinute, formatTime } from '../../api/clock';
+import { Txt, TeamCrest, PressableScale, ScoreSlash } from '../../ui';
+import { useLiveMinute } from '../../api/clock';
 
-const TeamLine = ({ team, score, dim, showScore, colors }) => (
-  <View style={styles.line}>
-    <TeamCrest team={team} size={22} />
-    <Txt
-      variant="bodyStrong"
-      numberOfLines={1}
-      style={{ flex: 1, marginLeft: 10, fontFamily: dim ? 'Poppins-Medium' : 'Poppins-SemiBold' }}
-      color={dim ? colors.textSecondary : colors.text}
-    >
-      {team?.name}
-    </Txt>
-    {showScore ? (
-      <Txt variant="scoreSm" color={dim ? colors.textMuted : colors.text} style={{ minWidth: 22, textAlign: 'right' }}>
-        {score ?? 0}
+export const formatTime24 = (d) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+function Center({ match, minute, colors }) {
+  if (match.isScheduled) {
+    return (
+      <Txt variant="time" align="center">
+        {match.kickoff ? formatTime24(match.kickoff) : '--:--'}
       </Txt>
-    ) : null}
-  </View>
-);
+    );
+  }
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Txt variant="scoreSm">{match.score.home ?? 0}</Txt>
+        <ScoreSlash height={16} width={3} live={match.isLive} muted={!match.isLive} />
+        <Txt variant="scoreSm">{match.score.away ?? 0}</Txt>
+      </View>
+      <Txt variant="overline" color={match.isLive ? colors.live : colors.textMuted} style={{ fontSize: 10, letterSpacing: 1 }}>
+        {match.isLive ? minute : match.statusCompact || 'FIN'}
+      </Txt>
+    </View>
+  );
+}
 
 function MatchRow({ match, onPress, last }) {
-  const { colors, space } = useDesign();
+  const { colors } = useDesign();
   const minute = useLiveMinute(match);
-  const showScore = !match.isScheduled;
   const h = match.score.home ?? 0;
   const a = match.score.away ?? 0;
-  const homeDim = match.isFinished && h < a;
-  const awayDim = match.isFinished && a < h;
+  const homeLost = match.isFinished && h < a;
+  const awayLost = match.isFinished && a < h;
 
   return (
-    <PressableScale onPress={onPress} scaleTo={0.99}>
-      <View
-        style={[
-          styles.row,
-          { paddingHorizontal: space[4], borderBottomColor: colors.divider },
-          last ? { borderBottomWidth: 0 } : null,
-        ]}
-      >
-        {match.isLive ? <View style={[styles.liveBar, { backgroundColor: colors.live }]} /> : null}
-        <View style={{ flex: 1, gap: 8 }}>
-          <TeamLine team={match.home} score={h} dim={homeDim} showScore={showScore} colors={colors} />
-          <TeamLine team={match.away} score={a} dim={awayDim} showScore={showScore} colors={colors} />
+    <PressableScale onPress={onPress} scaleTo={0.99} accessibilityLabel={`${match.home?.name} contra ${match.away?.name}`}>
+      <View style={[styles.row, { borderBottomColor: colors.divider }, last ? { borderBottomWidth: 0 } : null]}>
+        <View style={[styles.side, { justifyContent: 'flex-end' }]}>
+          <Txt variant="bodyStrong" numberOfLines={2} align="right" color={homeLost ? colors.textSecondary : colors.text} style={styles.name}>
+            {match.home?.name}
+          </Txt>
+          <TeamCrest team={match.home} size={28} />
         </View>
-        <View style={[styles.status, { borderLeftColor: colors.divider }]}>
-          {match.isLive ? (
-            <View style={{ alignItems: 'center', gap: 4 }}>
-              <PulseDot size={6} />
-              <Txt variant="number" tone="live" style={{ fontFamily: 'Poppins-Bold' }}>
-                {minute}
-              </Txt>
-            </View>
-          ) : match.isScheduled ? (
-            <View style={{ alignItems: 'center' }}>
-              <Txt variant="number" style={{ fontFamily: 'Poppins-Bold' }}>
-                {formatTime(match.kickoff)}
-              </Txt>
-              <Txt variant="caption" tone="muted" style={{ fontSize: 10 }}>
-                {match.kickoff && match.kickoff.getHours() < 12 ? 'a. m.' : 'p. m.'}
-              </Txt>
-            </View>
-          ) : (
-            <Txt variant="caption" tone="muted" style={{ fontFamily: 'Poppins-SemiBold' }}>
-              {match.statusCompact || 'FIN'}
-            </Txt>
-          )}
+        <View style={styles.center}>
+          <Center match={match} minute={minute} colors={colors} />
+        </View>
+        <View style={styles.side}>
+          <TeamCrest team={match.away} size={28} />
+          <Txt variant="bodyStrong" numberOfLines={2} color={awayLost ? colors.textSecondary : colors.text} style={styles.name}>
+            {match.away?.name}
+          </Txt>
         </View>
       </View>
     </PressableScale>
@@ -78,15 +63,18 @@ function MatchRow({ match, onPress, last }) {
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  line: { flexDirection: 'row', alignItems: 'center' },
-  status: { width: 62, alignItems: 'center', justifyContent: 'center', borderLeftWidth: StyleSheet.hairlineWidth, marginLeft: 12, alignSelf: 'stretch' },
-  liveBar: { position: 'absolute', left: 0, top: 14, bottom: 14, width: 3, borderRadius: 2 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth },
+  side: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  name: { flexShrink: 1, fontSize: 13.5 },
+  center: { width: 84, alignItems: 'center' },
 });
 
-export default memo(MatchRow, (a, b) => a.match.revision === b.match.revision && a.match.status === b.match.status && a.last === b.last && a.match.score.home === b.match.score.home && a.match.score.away === b.match.score.away);
+export default memo(
+  MatchRow,
+  (a, b) =>
+    a.match.revision === b.match.revision &&
+    a.match.status === b.match.status &&
+    a.last === b.last &&
+    a.match.score.home === b.match.score.home &&
+    a.match.score.away === b.match.score.away,
+);

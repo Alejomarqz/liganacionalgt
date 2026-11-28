@@ -65,7 +65,7 @@ function StandingsPreview({ rows, loading, limit = 6, highlightTeamId, onPressTe
               <Txt variant="number" tone={r.gd > 0 ? 'success' : r.gd < 0 ? 'danger' : 'secondary'} style={styles.cell}>
                 {r.gd > 0 ? `+${r.gd}` : r.gd}
               </Txt>
-              <Txt variant="number" style={[styles.cell, styles.pts, { fontFamily: 'Poppins-ExtraBold' }]}>
+              <Txt variant="number" style={[styles.cell, styles.pts, { fontFamily: 'InterDisplay-ExtraBold' }]}>
                 {r.points}
               </Txt>
             </View>
@@ -74,7 +74,7 @@ function StandingsPreview({ rows, loading, limit = 6, highlightTeamId, onPressTe
       })}
       {onPressAll ? (
         <PressableScale onPress={onPressAll} style={[styles.all, { borderTopColor: colors.divider }]}>
-          <Txt variant="caption" tone="brand" style={{ fontFamily: 'Poppins-SemiBold' }}>
+          <Txt variant="caption" tone="brand" style={{ fontFamily: 'Inter-SemiBold' }}>
             Ver tabla completa
           </Txt>
         </PressableScale>

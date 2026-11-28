@@ -17,16 +17,17 @@ function Tabs({ tabs, value, onChange, style, scrollable = false }) {
   useEffect(() => {
     const l = layouts[value];
     if (l) {
-      x.value = withSpring(l.x, motion.spring);
-      w.value = withSpring(l.width, motion.spring);
+      // El indicador va un poco más corto que la pestaña e inclinado (la diagonal)
+      x.value = withSpring(l.x + 12, motion.spring);
+      w.value = withSpring(Math.max(0, l.width - 24), motion.spring);
     }
   }, [value, layouts, x, w]);
 
-  const indicator = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }], width: w.value }));
+  const indicator = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }, { skewX: '-30deg' }], width: w.value }));
 
   const Row = scrollable ? ScrollView : View;
   const rowProps = scrollable
-    ? { horizontal: true, showsHorizontalScrollIndicator: false, contentContainerStyle: { paddingHorizontal: space[4] } }
+    ? { horizontal: true, showsHorizontalScrollIndicator: false, contentContainerStyle: { paddingHorizontal: 12 } }
     : { style: { flexDirection: 'row', paddingHorizontal: space[4] } };
 
   return (
@@ -48,15 +49,15 @@ function Tabs({ tabs, value, onChange, style, scrollable = false }) {
                   const { x: lx, width } = e.nativeEvent.layout;
                   setLayouts((p) => (p[key]?.x === lx && p[key]?.width === width ? p : { ...p, [key]: { x: lx, width } }));
                 }}
-                style={{ flex: scrollable ? undefined : 1, paddingHorizontal: scrollable ? space[4] : 0, paddingVertical: 12, alignItems: 'center' }}
+                style={{ flex: scrollable ? undefined : 1, paddingHorizontal: scrollable ? 12 : 0, paddingVertical: 13, alignItems: 'center' }}
               >
-                <Txt variant="bodyStrong" color={active ? colors.text : colors.textMuted} numberOfLines={1}>
+                <Txt variant="bodyStrong" color={active ? colors.text : colors.textMuted} numberOfLines={1} style={{ fontFamily: 'Inter-Bold', fontSize: 13.5 }}>
                   {label}
                 </Txt>
               </PressableScale>
             );
           })}
-          <Animated.View style={[{ position: 'absolute', bottom: 0, left: 0, height: 3, borderRadius: 2, backgroundColor: colors.primary }, indicator]} />
+          <Animated.View style={[{ position: 'absolute', bottom: 0, left: 0, height: 3, backgroundColor: colors.primary }, indicator]} />
         </View>
       </Row>
     </View>

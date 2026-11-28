@@ -1,48 +1,36 @@
 // src/ui/SectionHeader.js
+// Título de sección con la diagonal de la marca.
 import React, { memo } from 'react';
 import { View } from 'react-native';
-import { CaretRight } from 'phosphor-react-native';
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
 import Txt from './Text';
 import PressableScale from './PressableScale';
+import { Slash } from './Slash';
 
 function SectionHeader({ title, eyebrow, actionLabel = 'Ver todo', onAction, right, style }) {
-  const { colors, space } = useDesign();
+  const { space } = useDesign();
   return (
-    <View
-      style={[
-        {
-          flexDirection: 'row',
-          alignItems: 'flex-end',
-          justifyContent: 'space-between',
-          paddingHorizontal: space[5],
-          marginBottom: space[3],
-        },
-        style,
-      ]}
-    >
+    <View style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: space[5], marginBottom: space[3] }, style]}>
       <View style={{ flex: 1 }}>
         {eyebrow ? (
-          <Txt variant="overline" tone="brand" style={{ marginBottom: 2 }}>
+          <Txt variant="overline" tone="secondary" style={{ marginBottom: 4 }}>
             {eyebrow}
           </Txt>
         ) : null}
-        <Txt variant="h2" numberOfLines={1}>
-          {title}
-        </Txt>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Slash />
+          <Txt variant="h2" numberOfLines={1} style={{ flexShrink: 1 }}>
+            {title}
+          </Txt>
+        </View>
       </View>
       {right}
       {onAction ? (
-        <PressableScale
-          onPress={onAction}
-          hitSlop={hitSlop}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: 2, paddingBottom: 3 }}
-        >
-          <Txt variant="caption" tone="brand">
+        <PressableScale onPress={onAction} hitSlop={hitSlop}>
+          <Txt variant="caption" tone="brand" style={{ fontFamily: 'Inter-SemiBold', fontSize: 12.5 }}>
             {actionLabel}
           </Txt>
-          <CaretRight size={12} weight="bold" color={colors.primary} />
         </PressableScale>
       ) : null}
     </View>

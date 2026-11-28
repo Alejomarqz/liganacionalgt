@@ -10,3 +10,5 @@ export { default as Pill } from './Pill';
 export { EmptyState, ErrorState, OfflineBanner } from './StateViews';
 export { default as Tabs } from './Tabs';
 export { default as FormStrip } from './FormStrip';
+export { default as Slash, ScoreSlash, Beams } from './Slash';
+export { default as StadiumBackdrop } from './StadiumBackdrop';

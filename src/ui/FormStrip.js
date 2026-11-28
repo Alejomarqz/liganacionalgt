@@ -1,29 +1,22 @@
 // src/ui/FormStrip.js
-// Racha reciente: G / E / P en chips de color (más reciente a la derecha).
+// Racha: barras inclinadas verde/gris/rojo (más reciente a la derecha).
 import React, { memo } from 'react';
 import { View } from 'react-native';
 import { useDesign } from '../design/useDesign';
-import Txt from './Text';
+import { CHIP_SKEW } from '../design/tokens';
 
-const LABEL = { W: 'G', D: 'E', L: 'P' };
+const A11Y = { W: 'Ganó', D: 'Empató', L: 'Perdió' };
 
-function FormStrip({ sequence = '', size = 22, style }) {
+function FormStrip({ sequence = '', size = 12, last, style }) {
   const { colors } = useDesign();
-  const bg = { W: colors.success, D: colors.textMuted, L: colors.danger };
-  const items = String(sequence).toUpperCase().split('').filter((c) => LABEL[c]);
+  const bg = { W: colors.formW, D: colors.formD, L: colors.formL };
+  let items = String(sequence).toUpperCase().split('').filter((c) => bg[c]);
+  if (last) items = items.slice(-last);
   if (!items.length) return null;
   return (
-    <View style={[{ flexDirection: 'row', gap: 4 }, style]}>
+    <View accessibilityLabel={items.map((r) => A11Y[r]).join(', ')} style={[{ flexDirection: 'row', gap: 3 }, style]}>
       {items.map((r, i) => (
-        <View
-          key={i}
-          accessibilityLabel={r === 'W' ? 'Ganó' : r === 'D' ? 'Empató' : 'Perdió'}
-          style={{ width: size, height: size, borderRadius: 6, backgroundColor: bg[r], alignItems: 'center', justifyContent: 'center', opacity: 0.55 + (0.45 * (i + 1)) / items.length }}
-        >
-          <Txt variant="overline" color="#fff" style={{ letterSpacing: 0, fontSize: size * 0.48 }}>
-            {LABEL[r]}
-          </Txt>
-        </View>
+        <View key={i} style={{ width: size * 0.75, height: size, borderRadius: 1, backgroundColor: bg[r], transform: [{ skewX: CHIP_SKEW }] }} />
       ))}
     </View>
   );

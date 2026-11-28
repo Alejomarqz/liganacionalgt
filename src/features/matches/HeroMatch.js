@@ -122,7 +122,7 @@ function HeroMatch({ match, onPress, reminderOn, onToggleReminder }) {
               ) : (
                 <BellSimple size={16} weight="bold" color="#fff" />
               )}
-              <Txt variant="caption" color={reminderOn ? colors.primaryStrong : '#fff'} style={{ fontFamily: 'Poppins-SemiBold' }}>
+              <Txt variant="caption" color={reminderOn ? colors.primaryStrong : '#fff'} style={{ fontFamily: 'Inter-SemiBold' }}>
                 {reminderOn ? 'Te avisamos' : 'Avísame'}
               </Txt>
             </PressableScale>

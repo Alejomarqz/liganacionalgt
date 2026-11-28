@@ -10,7 +10,7 @@ import { CaretLeft, UsersThree, Check, Plus, MapPin, ClipboardText, Buildings } 
 
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
-import { Txt, Surface, PressableScale, Tabs, TeamCrest, FormStrip, SectionHeader, SkeletonCard, EmptyState } from '../ui';
+import { Beams, Txt, Surface, PressableScale, Tabs, TeamCrest, FormStrip, SectionHeader, SkeletonCard, EmptyState } from '../ui';
 import { api, useMatches, useStandings, useScorers, selectTeamMatches } from '../api/liga';
 import { useQuery } from '../api/store';
 import { useTeamProfile, useRoster, normalizeTeamProfile, GROUP_LABEL, GROUP_ORDER } from '../api/profiles';
@@ -86,7 +86,7 @@ const SquadPlayer = ({ p, colors, onPress, last }) => {
           </Txt>
         </View>
         {p.goals ? (
-          <Txt variant="caption" tone="brand" style={{ fontFamily: 'Poppins-Bold' }}>
+          <Txt variant="caption" tone="brand" style={{ fontFamily: 'Inter-Bold' }}>
             {p.goals} ⚽
           </Txt>
         ) : null}
@@ -160,6 +160,7 @@ export default function TeamProfileScreen({ navigation, route }) {
       >
         {/* Cabecera */}
         <LinearGradient colors={[brand, colors.bg]} locations={[0, 1]} style={{ paddingTop: 56, paddingBottom: space[5], paddingHorizontal: space[5] }}>
+          <Beams />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
             <View style={styles.crestBox}>
               <TeamCrest team={team} size={72} />
@@ -223,7 +224,7 @@ export default function TeamProfileScreen({ navigation, route }) {
                       <Txt variant="caption" tone="secondary">
                         {row.won}G · {row.drawn}E · {row.lost}P
                       </Txt>
-                      <FormStrip sequence={form} size={20} />
+                      <FormStrip sequence={form} size={14} />
                     </View>
                   </Surface>
                 </View>
@@ -331,5 +332,5 @@ const styles = StyleSheet.create({
   squadRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 11, borderBottomWidth: StyleSheet.hairlineWidth },
   squadPhoto: { width: 40, height: 40, borderRadius: 20 },
   topBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', paddingHorizontal: 12 },
-  roundBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.28)', alignItems: 'center', justifyContent: 'center' },
+  roundBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });

@@ -1,6 +1,6 @@
 // src/features/match/Timeline.js
-// Línea de tiempo vertical: local a la izquierda, visitante a la derecha.
-// Los eventos aparecen con animación escalonada.
+// Eventos del partido en filas: local a la izquierda, visitante a la derecha,
+// minuto e ícono al centro. Lo más reciente arriba. Separador de descanso.
 import React, { memo, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -20,99 +20,96 @@ const KIND_LABEL = {
   sub: 'Cambio',
   var: 'VAR',
 };
+const GOALS = new Set(['goal', 'penalty_goal', 'own_goal']);
 
-const Divider = ({ label, score, colors }) => (
-  <View style={styles.divider}>
-    <View style={[styles.line, { backgroundColor: colors.divider }]} />
-    <View style={[styles.dividerPill, { backgroundColor: colors.surfaceHigh }]}>
-      <Txt variant="overline" tone="secondary">
-        {label}
-        {score ? `  ${score}` : ''}
-      </Txt>
-    </View>
-    <View style={[styles.line, { backgroundColor: colors.divider }]} />
+const Band = ({ label, colors }) => (
+  <View style={[styles.band, { backgroundColor: colors.surfaceHigh, borderBottomColor: colors.divider }]}>
+    <Txt variant="overline" tone="secondary" style={{ fontSize: 9.5 }}>
+      {label}
+    </Txt>
   </View>
 );
 
 function EventRow({ e, index, colors }) {
   const home = e.side === 'home';
-  const isGoal = ['goal', 'penalty_goal', 'own_goal'].includes(e.kind);
-  const content = (
-    <View style={[styles.content, { alignItems: home ? 'flex-end' : 'flex-start' }]}>
-      <Txt variant="bodyStrong" numberOfLines={1} align={home ? 'right' : 'left'} style={isGoal ? { fontFamily: 'Poppins-Bold' } : null}>
-        {e.kind === 'sub' ? e.relatedName || e.playerName : e.playerName || e.teamName}
+  const goal = GOALS.has(e.kind);
+  const name = e.kind === 'sub' ? e.relatedName || e.playerName : e.playerName || e.teamName;
+  const sub = e.kind === 'sub' ? `Sale ${e.playerName}` : e.kind === 'penalty_goal' ? 'Penal' : e.kind === 'own_goal' ? 'Autogol' : null;
+  const text = (
+    <View style={{ alignItems: home ? 'flex-end' : 'flex-start' }}>
+      <Txt variant="bodyStrong" numberOfLines={1} align={home ? 'right' : 'left'} style={{ fontFamily: goal ? 'Inter-Bold' : 'Inter-Medium', fontSize: 13.5 }}>
+        {name}
       </Txt>
-      <Txt variant="caption" tone="muted" numberOfLines={1} align={home ? 'right' : 'left'}>
-        {e.kind === 'sub' ? `Sale ${e.playerName}` : KIND_LABEL[e.kind] || e.display || e.type}
-      </Txt>
+      {sub ? (
+        <Txt variant="caption" tone="muted" numberOfLines={1}>
+          {sub}
+        </Txt>
+      ) : null}
     </View>
   );
   return (
-    <Animated.View entering={FadeInDown.delay(Math.min(index, 12) * 40).springify().damping(18)} style={styles.row}>
-      <View style={styles.half}>{home ? content : null}</View>
-      <View style={styles.axis}>
-        <View style={[styles.minute, { backgroundColor: isGoal ? colors.primary : colors.surfaceHigh }]}>
-          <Txt variant="number" color={isGoal ? '#fff' : colors.text} style={{ fontSize: 11, fontFamily: 'Poppins-Bold' }}>
-            {minuteText(e)}
-          </Txt>
-        </View>
-        <View style={{ marginTop: 6 }}>
-          <EventIcon kind={e.kind} size={15} />
-        </View>
+    <Animated.View
+      entering={FadeInDown.delay(Math.min(index, 10) * 35).duration(280)}
+      accessibilityLabel={`${minuteText(e)} ${KIND_LABEL[e.kind] || ''} ${name}`}
+      style={[styles.row, { borderBottomColor: colors.divider }]}
+    >
+      <View style={styles.half}>{home ? text : null}</View>
+      <View style={styles.mid}>
+        <Txt variant="number" color={goal ? colors.text : colors.textSecondary} style={{ fontFamily: 'InterDisplay-Bold' }}>
+          {minuteText(e)}
+        </Txt>
+        <EventIcon kind={e.kind} size={15} />
       </View>
-      <View style={styles.half}>{!home ? content : null}</View>
+      <View style={styles.half}>{!home ? text : null}</View>
     </Animated.View>
   );
 }
 
 function Timeline({ model }) {
-  const { colors, space } = useDesign();
+  const { colors } = useDesign();
   const { events, match } = model;
 
-  // Insertamos separadores de periodo y marcador parcial al descanso
   const items = useMemo(() => {
     const out = [];
     let h = 0;
     let a = 0;
-    let lastPeriod = null;
+    let last = null;
     for (const e of events) {
-      if (lastPeriod === 'first_half' && e.period === 'second_half') out.push({ divider: true, label: 'Descanso', score: `${h}–${a}`, key: 'ht' });
-      lastPeriod = e.period || lastPeriod;
-      if (['goal', 'penalty_goal', 'own_goal'].includes(e.kind)) {
+      if (last === 'first_half' && e.period === 'second_half') out.push({ band: true, key: 'ht', label: `Descanso · ${h} – ${a}` });
+      last = e.period || last;
+      if (GOALS.has(e.kind)) {
         if (e.scoringSide === 'home') h += 1;
         else a += 1;
       }
       out.push(e);
     }
-    return out.reverse(); // lo más reciente arriba
+    return out.reverse();
   }, [events]);
 
   if (!events.length) {
     return (
-      <Surface style={{ marginHorizontal: space[4] }}>
-        <EmptyState title={match.isScheduled ? 'Aún no empieza' : 'Sin eventos'} message={match.isScheduled ? 'Aquí verás goles, tarjetas y cambios minuto a minuto.' : 'No hay eventos registrados para este partido.'} />
+      <Surface style={{ marginHorizontal: 16 }}>
+        <EmptyState
+          title={match.isScheduled ? 'Aún no empieza' : 'Sin eventos'}
+          message={match.isScheduled ? 'Aquí verás goles, tarjetas y cambios minuto a minuto.' : 'No hay eventos registrados para este partido.'}
+        />
       </Surface>
     );
   }
 
   return (
-    <Surface style={{ marginHorizontal: space[4], paddingHorizontal: 8 }}>
-      {match.isFinished ? <Divider label="Final" score={`${match.score.home}–${match.score.away}`} colors={colors} /> : null}
-      {items.map((it, i) => (it.divider ? <Divider key={it.key} label={it.label} score={it.score} colors={colors} /> : <EventRow key={it.id} e={it} index={i} colors={colors} />))}
-      <Divider label="Inicio" colors={colors} />
+    <Surface padded={false} style={{ marginHorizontal: 16 }}>
+      {match.isFinished ? <Band label={`Final · ${match.score.home} – ${match.score.away}`} colors={colors} /> : null}
+      {items.map((it, i) => (it.band ? <Band key={it.key} label={it.label} colors={colors} /> : <EventRow key={it.id} e={it} index={i} colors={colors} />))}
     </Surface>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 11, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth },
   half: { flex: 1 },
-  axis: { width: 64, alignItems: 'center' },
-  minute: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, minWidth: 40, alignItems: 'center' },
-  content: { gap: 0, paddingHorizontal: 4 },
-  divider: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10 },
-  line: { flex: 1, height: 1 },
-  dividerPill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
+  mid: { width: 70, alignItems: 'center', gap: 4 },
+  band: { alignItems: 'center', paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
 });
 
 export default memo(Timeline);

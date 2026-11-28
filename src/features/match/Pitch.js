@@ -83,7 +83,7 @@ const PlayerDot = memo(function PlayerDot({ p, marks, color, onPress }) {
           <Image source={{ uri: p.photo }} onError={() => setFailed(true)} style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: '#fff', backgroundColor: color }} />
         ) : (
           <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color, borderWidth: 2, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-            <Txt variant="number" color="#fff" style={{ fontFamily: 'Poppins-ExtraBold' }}>
+            <Txt variant="number" color="#fff" style={{ fontFamily: 'InterDisplay-ExtraBold' }}>
               {p.number ?? ''}
             </Txt>
           </View>
@@ -106,7 +106,7 @@ const PlayerDot = memo(function PlayerDot({ p, marks, color, onPress }) {
         ) : null}
       </View>
       <View style={styles.nameTag}>
-        <Txt variant="caption" color="#fff" numberOfLines={1} style={{ fontSize: 10.5, fontFamily: 'Poppins-SemiBold' }}>
+        <Txt variant="caption" color="#fff" numberOfLines={1} style={{ fontSize: 10.5, fontFamily: 'Inter-SemiBold' }}>
           {p.shortName}
         </Txt>
       </View>

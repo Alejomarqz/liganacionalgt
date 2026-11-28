@@ -8,7 +8,7 @@ import { CaretLeft, ShareNetwork, Crown } from 'phosphor-react-native';
 
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
-import { Txt, Surface, PressableScale, TeamCrest, SectionHeader, SkeletonCard, Pill } from '../ui';
+import { Beams, Txt, Surface, PressableScale, TeamCrest, SectionHeader, SkeletonCard, Pill } from '../ui';
 import { usePlayer, normalizePlayerProfile, positionGroup, GROUP_LABEL } from '../api/profiles';
 import { useScorers } from '../api/liga';
 import { useTeamColor } from '../features/teams/useTeamColor';
@@ -88,6 +88,7 @@ export default function PlayerProfileScreen({ navigation, route }) {
         refreshControl={<RefreshControl refreshing={q.refreshing} onRefresh={q.refresh} tintColor="#fff" />}
       >
         <LinearGradient colors={[brand, colors.bg]} style={{ paddingTop: 56, paddingHorizontal: space[5], paddingBottom: space[4] }}>
+          <Beams />
           {p.number != null ? (
             <Txt variant="display" color="rgba(255,255,255,0.08)" style={styles.watermark}>
               {p.number}
@@ -185,5 +186,5 @@ const styles = StyleSheet.create({
   stat: { width: '31.5%', flexGrow: 1, alignItems: 'center', paddingVertical: 14, borderRadius: 16, borderWidth: 1, gap: 2 },
   infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth },
   topBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', paddingHorizontal: 12, paddingTop: 6 },
-  roundBtn: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(0,0,0,0.28)', alignItems: 'center', justifyContent: 'center' },
+  roundBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
 });
