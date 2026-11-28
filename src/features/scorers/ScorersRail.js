@@ -30,7 +30,7 @@ const Card = memo(function Card({ item, index, onPress }) {
   const leader = index === 0;
   const body = (
     <>
-      {leader ? <View pointerEvents="none" style={{ position: 'absolute', top: -20, bottom: -20, left: '58%', width: 34, backgroundColor: 'rgba(255,255,255,0.10)', transform: [{ skewX: '-20deg' }] }} /> : null}
+
       <View style={styles.rank}>
         {leader ? <Crown size={14} weight="fill" color="rgba(255,255,255,0.8)" /> : null}
         <Txt variant="overline" color={leader ? 'rgba(255,255,255,0.8)' : colors.textMuted}>

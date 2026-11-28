@@ -122,7 +122,7 @@ export default function MatchCenterScreen({ navigation, route }) {
       >
         <MatchHeader model={model} onTeam={openTeam} topInset={topInset} />
 
-        <View style={{ backgroundColor: colors.bg, marginTop: -24, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 6 }}>
+        <View style={{ backgroundColor: colors.bg }}>
           <Tabs tabs={TABS} value={activeTab} onChange={setTab} scrollable />
         </View>
 

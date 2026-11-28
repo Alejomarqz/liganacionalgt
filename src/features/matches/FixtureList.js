@@ -38,14 +38,14 @@ function FixtureList({ matches, onOpen, style }) {
               justifyContent: 'space-between',
               paddingHorizontal: 16,
               paddingVertical: 10,
-              backgroundColor: g.live ? colors.liveSoft : 'transparent',
+              backgroundColor: g.live ? colors.liveSoft : colors.band,
               borderBottomWidth: 1,
               borderBottomColor: colors.divider,
               borderTopWidth: gi > 0 ? 1 : 0,
               borderTopColor: colors.divider,
             }}
           >
-            {g.live ? <LiveBadge /> : <Txt variant="overline" tone="secondary">{g.label}</Txt>}
+            {g.live ? <LiveBadge /> : <Txt variant="overline" tone="brand">{g.label}</Txt>}
             {g.live ? (
               <Txt variant="caption" tone="secondary" style={{ fontFamily: 'Inter-SemiBold', fontSize: 11 }}>
                 {g.label}

@@ -55,7 +55,7 @@ function ClubPicker({ current, onConfirm, onCancel, navigation }) {
         </View>
       </StadiumBackdrop>
 
-      <View style={{ flex: 1, marginTop: -24, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: colors.bg, overflow: 'hidden' }}>
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
         {q.loading ? (
           <View style={{ padding: 16, gap: 10 }}>
             {[0, 1, 2, 3, 4].map((i) => (

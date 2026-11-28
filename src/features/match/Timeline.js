@@ -23,7 +23,7 @@ const KIND_LABEL = {
 const GOALS = new Set(['goal', 'penalty_goal', 'own_goal']);
 
 const Band = ({ label, colors }) => (
-  <View style={[styles.band, { backgroundColor: colors.surfaceHigh, borderBottomColor: colors.divider }]}>
+  <View style={[styles.band, { backgroundColor: colors.band, borderBottomColor: colors.divider }]}>
     <Txt variant="overline" tone="secondary" style={{ fontSize: 9.5 }}>
       {label}
     </Txt>

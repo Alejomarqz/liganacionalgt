@@ -50,7 +50,7 @@ function StandingsTable({ rows, loading, limit, forms = {}, highlightIds = [], r
   return (
     <View style={style}>
       <Surface padded={false} style={{ marginHorizontal: 12 }}>
-        <View style={[styles.row, styles.head, { borderBottomColor: colors.divider }]}>
+        <View style={[styles.row, styles.head, { borderBottomColor: colors.divider, backgroundColor: colors.band }]}>
           <View style={{ width: 14 }} />
           <Txt variant="overline" tone="muted" style={styles.pos}>#</Txt>
           <Txt variant="overline" tone="muted" style={{ flex: 1 }}>Equipo</Txt>

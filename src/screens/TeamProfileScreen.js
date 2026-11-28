@@ -172,7 +172,7 @@ export function TeamProfileView({ navigation, teamId, passed = {}, isMyClub = fa
     Share.share({ message: `${team.name}${row ? ` · ${row.position}° con ${row.points} pts` : ''}\nApp oficial de la Liga Nacional GT` }).catch(() => {});
   }, [team.name, row]);
 
-  const HEADER_H = insets.top + 360;
+  const HEADER_H = insets.top + 400;
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -184,7 +184,7 @@ export function TeamProfileView({ navigation, teamId, passed = {}, isMyClub = fa
       >
         {/* Portada: foto del club a todo lo ancho, bajo la barra de estado */}
         <StadiumBackdrop source={hero || undefined} mode={hero ? 'photo' : 'duotone'} height={HEADER_H}>
-          <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: space[5], paddingBottom: 44 }}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: space[5], paddingBottom: 76 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <View style={styles.crestBox}>
                 <TeamCrest team={team} size={56} />
@@ -236,7 +236,7 @@ export function TeamProfileView({ navigation, teamId, passed = {}, isMyClub = fa
         </StadiumBackdrop>
 
         {/* Hoja con pestañas (se queda arriba al hacer scroll) */}
-        <View style={{ backgroundColor: colors.bg, marginTop: -24, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 6 }}>
+        <View style={{ backgroundColor: colors.bg }}>
           <Tabs tabs={TABS} value={tab} onChange={setTab} />
         </View>
 

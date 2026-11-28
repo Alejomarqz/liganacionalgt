@@ -83,6 +83,7 @@ const dark = {
   formD: palette.draw,
   formL: palette.loss,
 
+  band: 'rgba(255,255,255,0.025)',
   skeleton: 'rgba(255,255,255,0.05)',
   skeletonHighlight: 'rgba(255,255,255,0.09)',
   overlay: 'rgba(3,5,12,0.72)',
@@ -99,31 +100,32 @@ const dark = {
 
 const light = {
   mode: 'light',
-  bg: palette.paper,
+  // Fondo azul grisáceo: las tarjetas blancas "flotan" y todo gana contraste
+  bg: '#EBEFF8',
   bgElevated: palette.white,
   surface: palette.white,
   surfaceAlt: palette.white,
-  surfaceHigh: '#E9EDF6',
-  border: 'rgba(11,18,38,0.08)',
-  borderStrong: 'rgba(11,18,38,0.16)',
+  surfaceHigh: '#E1E8F6',
+  border: 'rgba(11,18,38,0.09)',
+  borderStrong: 'rgba(11,18,38,0.18)',
   divider: 'rgba(11,18,38,0.07)',
 
-  text: palette.gray900,
-  textSecondary: palette.gray700,
-  textMuted: palette.gray500,
+  text: '#060A17',
+  textSecondary: '#2A3350',
+  textMuted: '#69728F',
   textInverse: palette.white,
 
-  primary: palette.blue,
+  primary: '#2556F0',
   primaryStrong: palette.blue,
   primarySoft: 'rgba(53,104,253,0.10)',
   onPrimary: palette.white,
 
   live: '#E5283C',
-  liveSoft: 'rgba(229,40,60,0.08)',
-  gold: '#D99A00',
-  goldSoft: 'rgba(217,154,0,0.12)',
-  success: '#12A87A',
-  successSoft: 'rgba(18,168,122,0.10)',
+  liveSoft: 'rgba(229,40,60,0.09)',
+  gold: '#C98A00',
+  goldSoft: 'rgba(201,138,0,0.12)',
+  success: '#0E9F72',
+  successSoft: 'rgba(14,159,114,0.10)',
   warning: palette.yellowCard,
   danger: '#E5283C',
 
@@ -131,13 +133,16 @@ const light = {
   zoneQualify: palette.blue,
   zoneRelegation: '#E5283C',
 
-  formW: '#12A87A',
-  formD: '#9AA3BF',
+  formW: '#12B886',
+  formD: '#A3ACC4',
   formL: '#E5283C',
 
   skeleton: 'rgba(11,18,38,0.05)',
   skeletonHighlight: 'rgba(11,18,38,0.09)',
   overlay: 'rgba(5,8,20,0.55)',
+
+  // Bandas de cabecera (día de partidos, encabezado de tabla) con tinte azul
+  band: 'rgba(53,104,253,0.07)',
 
   photoTint: [palette.blueDeep, palette.blueNight],
   heroGradient: [palette.blueDeep, palette.blueNight, palette.ink],
@@ -232,12 +237,12 @@ export const shadow = (mode, level = 1) => {
   }
   return Platform.select({
     ios: {
-      shadowColor: '#1A2350',
-      shadowOpacity: 0.06 + 0.03 * level,
-      shadowRadius: 8 * level,
-      shadowOffset: { width: 0, height: 3 * level },
+      shadowColor: '#14214F',
+      shadowOpacity: 0.08 + 0.03 * level,
+      shadowRadius: 10 * level,
+      shadowOffset: { width: 0, height: 4 * level },
     },
-    android: { elevation: 1 + level },
+    android: { elevation: 2 + level },
   });
 };
 

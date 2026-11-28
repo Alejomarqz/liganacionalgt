@@ -48,7 +48,7 @@ function MatchHeader({ model, onTeam, topInset = 0 }) {
   const awayGoals = model.goals.filter((g) => g.scoringSide === 'away');
   const k = m.kickoff;
   const rowsOfScorers = Math.max(homeGoals.length, awayGoals.length);
-  const height = 360 + rowsOfScorers * 18 + topInset;
+  const height = 400 + rowsOfScorers * 18 + topInset;
 
   return (
     <StadiumBackdrop uri={model.stadium?.image} height={height} tint={m.isLive ? 'live' : 'brand'}>

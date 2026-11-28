@@ -1,8 +1,7 @@
 // src/ui/StadiumBackdrop.js
-// Foto en duotono azul Liga + haces diagonales suaves.
-// La foto SIEMPRE termina en azul noche (también en modo claro): el contenido
-// de abajo sube encima en una hoja redondeada (<ContentSheet/>), así nunca se
-// ve la foto "lavada" ni una franja de corte.
+// Foto en duotono azul Liga (o foto del club) que se funde suavemente con la
+// página. Se mantiene oscura la mayor parte del alto (para leer en blanco) y
+// solo al final se disuelve hacia el color de fondo, en claro y en oscuro.
 import React, { memo, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
@@ -13,37 +12,50 @@ import { Beams } from './Slash';
 const DEFAULT = require('../../resources/estadios/1415.jpg');
 const NIGHT = palette.ink;
 
+const hexA = (hex, a) => {
+  const h = hex.replace('#', '');
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return `rgba(${r},${g},${b},${a})`;
+};
+
 /**
- * mode:
- *  - 'duotone' (estadios): foto tenue sobre degradado azul Liga
- *  - 'photo'   (clubes / jugadores): foto a todo color, oscurecida abajo para leer texto
+ * mode: 'duotone' (estadio, tono azul Liga) · 'photo' (foto del club a todo color)
  */
 function StadiumBackdrop({ uri, source, height, tint = 'brand', mode = 'duotone', children, style }) {
-  const { colors } = useDesign();
+  const { colors, isDark } = useDesign();
   const [failed, setFailed] = useState(false);
   const img = source || (uri && !failed ? { uri } : DEFAULT);
   const base = tint === 'live' ? ['#5A0E1E', '#1A0711'] : colors.photoTint;
   const photo = mode === 'photo';
+  const bg = colors.bg;
+
+  // Fundido final: en oscuro el azul noche ya es el fondo; en claro, pasamos
+  // por un azul noche semitransparente antes de llegar al fondo claro para
+  // que no se vea "lavado" ni cortado.
+  const fade = photo
+    ? {
+        colors: ['rgba(6,10,23,0.55)', 'rgba(6,10,23,0.05)', 'rgba(6,10,23,0.55)', isDark ? hexA(bg, 0.92) : 'rgba(6,10,23,0.80)', bg],
+        locations: [0, 0.28, 0.62, 0.86, 1],
+      }
+    : {
+        colors: ['rgba(6,10,23,0.30)', 'rgba(6,10,23,0.28)', isDark ? hexA(bg, 0.75) : 'rgba(6,10,23,0.62)', bg],
+        locations: [0, 0.5, 0.8, 1],
+      };
 
   return (
     <View style={[{ height, overflow: 'hidden', backgroundColor: NIGHT }, style]}>
       {!photo ? <LinearGradient colors={base} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} /> : null}
-      <Image source={img} onError={() => setFailed(true)} resizeMode="cover" style={[StyleSheet.absoluteFill, { opacity: photo ? 1 : 0.3 }]} />
-      <LinearGradient
-        colors={photo ? ['rgba(6,10,23,0.55)', 'rgba(6,10,23,0.05)', 'rgba(6,10,23,0.55)', 'rgba(6,10,23,0.96)'] : ['rgba(6,10,23,0.30)', 'rgba(6,10,23,0.25)', 'rgba(6,10,23,0.80)']}
-        locations={photo ? [0, 0.3, 0.7, 1] : [0, 0.45, 1]}
-        style={StyleSheet.absoluteFill}
-      />
+      <Image source={img} onError={() => setFailed(true)} resizeMode="cover" style={[StyleSheet.absoluteFill, { opacity: photo ? 1 : 0.32 }]} />
       {!photo ? <Beams /> : null}
+      <LinearGradient colors={fade.colors} locations={fade.locations} style={StyleSheet.absoluteFill} />
       <View style={{ flex: 1 }}>{children}</View>
     </View>
   );
 }
 
-/** Hoja de contenido que sube sobre la foto (esquinas superiores redondeadas). */
-export const ContentSheet = memo(function ContentSheet({ children, style, overlap = 24 }) {
-  const { colors } = useDesign();
-  return <View style={[{ marginTop: -overlap, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: colors.bg, paddingTop: 22 }, style]}>{children}</View>;
+/** Contenedor del contenido que sigue a la foto (sin corte duro). */
+export const ContentSheet = memo(function ContentSheet({ children, style }) {
+  return <View style={[{ paddingTop: 4 }, style]}>{children}</View>;
 });
 
 export default memo(StadiumBackdrop);

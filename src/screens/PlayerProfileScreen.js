@@ -85,8 +85,8 @@ export default function PlayerProfileScreen({ navigation, route }) {
         contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}
         refreshControl={<RefreshControl refreshing={q.refreshing} onRefresh={q.refresh} tintColor="#fff" />}
       >
-        <StadiumBackdrop source={clubHero(team) || undefined} mode={clubHero(team) ? 'photo' : 'duotone'} height={insets.top + 400}>
-          <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: space[5], paddingBottom: 44 }}>
+        <StadiumBackdrop source={clubHero(team) || undefined} mode={clubHero(team) ? 'photo' : 'duotone'} height={insets.top + 430}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: space[5], paddingBottom: 72 }}>
           {p.number != null ? (
             <Txt variant="display" color="rgba(255,255,255,0.08)" style={styles.watermark}>
               {p.number}
