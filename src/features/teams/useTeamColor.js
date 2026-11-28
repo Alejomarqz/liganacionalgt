@@ -1,10 +1,18 @@
 // src/features/teams/useTeamColor.js
-// Color de marca de cada equipo extraído de su escudo (react-native-image-colors,
-// ya instalado). Se cachea en memoria. Garantiza contraste con texto blanco.
-import { useEffect, useState } from 'react';
-import ImageColors from 'react-native-image-colors';
+// Color de cabecera por club (perfil de equipo y jugador).
+// Mapa curado por slug: sin librerías nativas. Los clubes que no estén aquí
+// usan el azul Liga, que es el color de la identidad. Para agregar o corregir
+// un club, basta con editar CLUB_COLORS (se oscurece solo si hace falta).
 
-const cache = new Map();
+const CLUB_COLORS = {
+  municipal: '#C8102E',
+  comunicaciones: '#2F6FD6',
+  'antigua-gfc': '#0B7A3E',
+  antigua: '#0B7A3E',
+  xelaju: '#B5121B',
+  'xelaju-mc': '#B5121B',
+  guastatoya: '#C99700',
+};
 
 function hexToRgb(hex) {
   const h = String(hex || '').replace('#', '');
@@ -13,13 +21,8 @@ function hexToRgb(hex) {
 }
 const toHex = (rgb) => `#${rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`;
 const luminance = ([r, g, b]) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-const saturation = ([r, g, b]) => {
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  return max === 0 ? 0 : (max - min) / max;
-};
 
-// Oscurece hasta que el blanco sea legible encima
+// Oscurece hasta que el texto blanco sea legible encima
 function ensureDark(hex) {
   let rgb = hexToRgb(hex);
   if (!rgb) return null;
@@ -31,37 +34,22 @@ function ensureDark(hex) {
   return toHex(rgb);
 }
 
-function pick(res) {
-  const cands =
-    res.platform === 'ios'
-      ? [res.primary, res.secondary, res.detail, res.background]
-      : [res.vibrant, res.darkVibrant, res.dominant, res.muted, res.darkMuted];
-  // Preferimos colores saturados (evita blanco/gris del fondo del escudo)
-  const ranked = cands
-    .map((c) => ({ c, rgb: hexToRgb(c) }))
-    .filter((x) => x.rgb && saturation(x.rgb) > 0.25 && luminance(x.rgb) > 0.06 && luminance(x.rgb) < 0.92);
-  return ranked[0]?.c || cands.find(Boolean) || null;
+const slugify = (s = '') =>
+  String(s)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+export function teamColor(team, fallback) {
+  if (!team) return fallback;
+  const key = team.slug || slugify(team.name);
+  const hit = CLUB_COLORS[key] || CLUB_COLORS[slugify(team.name)];
+  return hit ? ensureDark(hit) : fallback;
 }
 
-export function useTeamColor(logo, fallback) {
-  const [color, setColor] = useState(() => cache.get(logo) || fallback);
-  useEffect(() => {
-    if (!logo) return undefined;
-    if (cache.has(logo)) {
-      setColor(cache.get(logo));
-      return undefined;
-    }
-    let alive = true;
-    ImageColors.getColors(logo, { fallback: fallback || '#3B5BDB', cache: true, key: logo, quality: 'low' })
-      .then((res) => {
-        const c = ensureDark(pick(res)) || fallback;
-        cache.set(logo, c);
-        if (alive) setColor(c);
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [logo, fallback]);
-  return color;
+/** Hook para mantener la misma API en las pantallas. */
+export function useTeamColor(team, fallback) {
+  return teamColor(team, fallback);
 }

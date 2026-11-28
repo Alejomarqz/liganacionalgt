@@ -116,7 +116,7 @@ export default function TeamProfileScreen({ navigation, route }) {
   const scorers = useScorers();
   const roster = useRoster(teamId);
   const follow = useFollowTeam(teamId);
-  const brand = useTeamColor(team.logo, colors.primaryStrong);
+  const brand = useTeamColor(team, colors.primaryStrong);
 
   const teamMatches = useMemo(() => selectTeamMatches(matchesQ.matches, teamId), [matchesQ.matches, teamId]);
   const upcoming = useMemo(() => teamMatches.filter((m) => m.isScheduled || m.isLive), [teamMatches]);

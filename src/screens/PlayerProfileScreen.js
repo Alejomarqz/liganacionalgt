@@ -50,7 +50,7 @@ export default function PlayerProfileScreen({ navigation, route }) {
 
   const scorerRow = scorers.rows.find((s) => String(s.player.id) === String(playerId));
   const team = p.team || scorerRow?.team || null;
-  const brand = useTeamColor(team?.logo, colors.primaryStrong);
+  const brand = useTeamColor(team, colors.primaryStrong);
   const [photoFailed, setPhotoFailed] = React.useState(false);
 
   const goals = p.stats.goals ?? scorerRow?.goals ?? null;
