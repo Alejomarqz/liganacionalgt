@@ -6,15 +6,16 @@
 // Se controla desde Firestore (app_config/liga_tv y liga_tv_shows).
 
 import React, { useMemo, useState } from 'react';
-import { Image, ScrollView, Share, View, StyleSheet } from 'react-native';
+import { Image, Modal, ScrollView, Share, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CaretLeft, BellSimpleRinging, BellSimple, Television, PushPin, ShareNetwork, Play, X } from 'phosphor-react-native';
+import { CaretLeft, BellSimpleRinging, BellSimple, Television, PushPin, ShareNetwork, Play, X, ChatsCircle, CaretRight } from 'phosphor-react-native';
 
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
 import { Txt, Surface, PressableScale, Skeleton, StadiumBackdrop, SectionHeader, LiveBadge, EmptyState } from '../ui';
 import { useLigaTV, useLigaTVShows } from '../features/ligatv/useLigaTV';
 import LigaTVPlayer from '../features/ligatv/LigaTVPlayer';
+import WebStreamPlayer from '../features/ligatv/WebStreamPlayer';
 import LiveChat from '../features/ligatv/LiveChat';
 import { ReactionsOverlay, ReactionBar, useReactions } from '../features/ligatv/Reactions';
 import { useCountdown, formatKickoff, formatDay } from '../api/clock';
@@ -48,7 +49,7 @@ function NextShowHero({ show, insets, colors }) {
   const upcoming = show?.startsAt && !c.done;
   return (
     <StadiumBackdrop source={show?.poster ? { uri: show.poster } : undefined} mode={show?.poster ? 'photo' : 'duotone'} height={insets.top + 380}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 36 }}>
+      <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 100 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Television size={18} color="#fff" weight="fill" />
           <Txt variant="overline" color="rgba(255,255,255,0.85)">
@@ -123,7 +124,11 @@ function LiveView({ tv, navigation, insets, colors }) {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ paddingTop: insets.top, backgroundColor: '#000' }}>
         <View>
-          <LigaTVPlayer source={tv.hlsUrl} poster={tv.poster} title={tv.title} />
+          {tv.streamKind === 'web' ? (
+            <WebStreamPlayer url={tv.hlsUrl} title={tv.title} />
+          ) : (
+            <LigaTVPlayer source={tv.hlsUrl} poster={tv.poster} title={tv.title} />
+          )}
           <ReactionsOverlay floaters={floaters} onDone={remove} />
         </View>
       </View>
@@ -175,6 +180,7 @@ export default function LigaTVScreen({ navigation }) {
   const { loading, tv } = useLigaTV();
   const shows = useLigaTVShows();
   const [episode, setEpisode] = useState(null);
+  const [chatOpen, setChatOpen] = useState(false);
 
   // Próxima emisión: la del config o la primera programada
   const next = useMemo(() => {
@@ -213,6 +219,25 @@ export default function LigaTVScreen({ navigation }) {
         )}
 
         <View style={{ gap: 26, paddingTop: 8 }}>
+          {tv.chatEnabled ? (
+            <PressableScale onPress={() => setChatOpen(true)} scaleTo={0.98} style={{ marginHorizontal: 16 }}>
+              <View style={[styles.preChat, { backgroundColor: colors.primary }]}>
+                <View style={styles.preChatIcon}>
+                  <ChatsCircle size={26} color="#fff" weight="fill" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Txt variant="bodyStrong" color="#fff">
+                    Chat de la previa
+                  </Txt>
+                  <Txt variant="caption" color="rgba(255,255,255,0.8)" numberOfLines={2}>
+                    La transmisión aún no empieza, pero la afición ya está hablando. ¡Únete!
+                  </Txt>
+                </View>
+                <CaretRight size={18} color="#fff" weight="bold" />
+              </View>
+            </PressableScale>
+          ) : null}
+
           {restUpcoming.length ? (
             <View>
               <SectionHeader title="Programación" />
@@ -242,6 +267,24 @@ export default function LigaTVScreen({ navigation }) {
       <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: insets.bottom, backgroundColor: colors.bgElevated }}>
         <FooterTabs navigation={navigation} routeName="LigaTV" />
       </View>
+
+      <Modal visible={chatOpen} animationType="slide" onRequestClose={() => setChatOpen(false)} statusBarTranslucent>
+        <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top, paddingBottom: insets.bottom }}>
+          <View style={[styles.episodeBar, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
+            <ChatsCircle size={22} color={colors.primary} weight="fill" />
+            <View style={{ flex: 1 }}>
+              <Txt variant="bodyStrong">Chat de la previa</Txt>
+              <Txt variant="caption" tone="muted" numberOfLines={1}>
+                {next?.startsAt ? `Arrancamos ${formatKickoff(next.startsAt)}` : 'Cuando salgamos en vivo, la plática sigue aquí'}
+              </Txt>
+            </View>
+            <PressableScale onPress={() => setChatOpen(false)} hitSlop={hitSlop} accessibilityLabel="Cerrar chat" style={[styles.iconBtn, { backgroundColor: colors.surfaceHigh }]}>
+              <X size={16} color={colors.text} weight="bold" />
+            </PressableScale>
+          </View>
+          <LiveChat streamId="main" admins={tv.admins} />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -257,5 +300,7 @@ const styles = StyleSheet.create({
   pinned: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   iconBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   round: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  preChat: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16 },
+  preChatIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   episodeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
 });

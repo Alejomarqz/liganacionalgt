@@ -23,11 +23,12 @@ function StadiumBackdrop({ uri, source, height, tint = 'brand', mode = 'duotone'
   const photo = mode === 'photo';
   const bg = colors.bg;
 
-  // Fundido largo y suave (el que se veía mejor): la foto se va disolviendo
-  // desde la mitad hasta el color de la página, sin escalones ni cortes.
+  // La foto se mantiene oscura ~78% del alto (ahí va todo el texto blanco) y
+  // solo el tramo final se funde con la página: sin "espacio lavado" en medio.
+  // REGLA para pantallas: el contenido blanco debe terminar antes del 78% del alto.
   const fade = photo
-    ? { colors: ['rgba(6,10,23,0.55)', 'rgba(6,10,23,0.05)', 'rgba(6,10,23,0.5)', bg], locations: [0, 0.3, 0.62, 1] }
-    : { colors: ['rgba(6,10,23,0.25)', 'rgba(6,10,23,0.35)', bg], locations: [0, 0.5, 1] };
+    ? { colors: ['rgba(6,10,23,0.55)', 'rgba(6,10,23,0.08)', 'rgba(6,10,23,0.5)', 'rgba(6,10,23,0.7)', bg], locations: [0, 0.28, 0.6, 0.78, 1] }
+    : { colors: ['rgba(6,10,23,0.25)', 'rgba(6,10,23,0.42)', bg], locations: [0, 0.78, 1] };
 
   return (
     <View style={[{ height, overflow: 'hidden', backgroundColor: NIGHT }, style]}>

@@ -12,6 +12,15 @@ import LinearGradient from 'react-native-linear-gradient';
 import { Play, Pause, SpeakerHigh, SpeakerSlash, CornersOut, PictureInPicture, ArrowClockwise } from 'phosphor-react-native';
 import { Txt, LiveBadge, PressableScale } from '../../ui';
 import { hitSlop } from '../../design/tokens';
+import { showInterstitialIfReady } from '../../../ads/AdManager';
+
+// Anuncio antes de la acción (AdManager limita a 1 por minuto)
+const withAd = async (fn) => {
+  try {
+    await showInterstitialIfReady('player_control');
+  } catch {}
+  fn();
+};
 
 const HIDE_AFTER = 3500;
 const MAX_RETRIES = 6;
@@ -160,14 +169,14 @@ function LigaTVPlayer({ source, poster, title, autoPlay = true, live = true, onS
           </View>
 
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.7)']} style={styles.bottom} pointerEvents="box-none">
-            <IconBtn onPress={() => setMuted((m) => !m)} label={muted ? 'Activar sonido' : 'Silenciar'}>
+            <IconBtn onPress={() => withAd(() => setMuted((m) => !m))} label={muted ? 'Activar sonido' : 'Silenciar'}>
               {muted ? <SpeakerSlash size={20} color="#fff" weight="bold" /> : <SpeakerHigh size={20} color="#fff" weight="bold" />}
             </IconBtn>
             <View style={{ flex: 1 }} />
-            <IconBtn onPress={() => video.current?.enterPictureInPicture?.()} label="Ventana flotante">
+            <IconBtn onPress={() => withAd(() => video.current?.enterPictureInPicture?.())} label="Ventana flotante">
               <PictureInPicture size={20} color="#fff" weight="bold" />
             </IconBtn>
-            <IconBtn onPress={() => video.current?.presentFullscreenPlayer?.()} label="Pantalla completa">
+            <IconBtn onPress={() => withAd(() => video.current?.presentFullscreenPlayer?.())} label="Pantalla completa">
               <CornersOut size={20} color="#fff" weight="bold" />
             </IconBtn>
           </LinearGradient>

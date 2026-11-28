@@ -120,7 +120,7 @@ export default function HomeScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={home.refreshing || matchesQ.refreshing} onRefresh={onRefresh} tintColor="#fff" colors={[colors.primaryStrong]} />}
       >
         {/* 1 · Foto del estadio + partido destacado */}
-        <StadiumBackdrop height={(featured?.isScheduled ? 450 : 400) + insets.top}>
+        <StadiumBackdrop height={(featured?.isScheduled ? 430 : 370) + insets.top}>
           <Header top={insets.top} onSearch={() => setSearchOpen(true)} onMore={() => navigation.navigate('More')} />
           <View style={{ paddingTop: 34 }}>
             {matchesQ.loading ? (

@@ -26,11 +26,15 @@ const toDate = (v) => {
   return Number.isNaN(d.getTime()) ? null : d;
 };
 
+export const streamKind = (url = '') => (/\.(m3u8|mp4)(\?|$)/i.test(String(url)) ? 'native' : 'web');
+
 export function parseLigaTV(raw) {
   if (!raw) return { active: false };
   return {
-    active: Boolean(raw.active && raw.hlsUrl),
-    hlsUrl: raw.hlsUrl || null,
+    active: Boolean(raw.active && (raw.hlsUrl || raw.playerUrl)),
+    hlsUrl: raw.hlsUrl || raw.playerUrl || null,
+    // 'native' = .m3u8/.mp4 con nuestro reproductor · 'web' = página de reproductor (WebView)
+    streamKind: streamKind(raw.hlsUrl || raw.playerUrl),
     title: raw.title || 'Liga TV',
     subtitle: raw.subtitle || '',
     poster: raw.poster || null,

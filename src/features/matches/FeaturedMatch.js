@@ -4,6 +4,7 @@
 // En vivo: marcador "2 / 1" con minuto.
 import React, { memo } from 'react';
 import { View, StyleSheet } from 'react-native';
+import LinearGradient from 'react-native-linear-gradient';
 import { MapPin, Target, BellSimple, BellSimpleRinging } from 'phosphor-react-native';
 import { useDesign } from '../../design/useDesign';
 import { Txt, TeamCrest, PressableScale, LiveBadge, Slash, ScoreSlash } from '../../ui';
@@ -80,21 +81,23 @@ function FeaturedMatch({ match, onPress, onPredict, reminderOn, onToggleReminder
 
       {match.isScheduled ? (
         <View style={styles.actions}>
-          <PressableScale onPress={onPredict} style={[styles.btn, { backgroundColor: '#fff' }]}>
-            <Target size={17} color={colors.primaryStrong} weight="fill" />
-            <Txt variant="bodyStrong" color="#0A1440" style={{ fontFamily: 'Inter-Bold' }}>
-              Pronosticar
-            </Txt>
+          {/* Principal: azul de marca */}
+          <PressableScale onPress={onPredict} style={{ flex: 1.15 }} accessibilityLabel="Pronosticar el marcador">
+            <LinearGradient colors={[colors.primaryGradient[0], colors.primaryGradient[1]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.btn, styles.btnShadow]}>
+              <Target size={18} color="#fff" weight="fill" />
+              <Txt variant="bodyStrong" color="#fff" style={{ fontFamily: 'Inter-ExtraBold' }}>
+                Pronosticar
+              </Txt>
+            </LinearGradient>
           </PressableScale>
-          <PressableScale
-            onPress={onToggleReminder}
-            accessibilityLabel={reminderOn ? 'Quitar recordatorio' : 'Recordarme el partido'}
-            style={[styles.btn, reminderOn ? { backgroundColor: colors.primaryStrong } : styles.btnGhost]}
-          >
-            {reminderOn ? <BellSimpleRinging size={17} color="#fff" weight="fill" /> : <BellSimple size={17} color="#fff" weight="bold" />}
-            <Txt variant="bodyStrong" color="#fff" style={{ fontFamily: 'Inter-Bold' }}>
-              {reminderOn ? 'Te avisamos' : 'Recordarme'}
-            </Txt>
+          {/* Secundario: blanco sólido */}
+          <PressableScale onPress={onToggleReminder} style={{ flex: 1 }} accessibilityLabel={reminderOn ? 'Quitar recordatorio' : 'Recordarme el partido'}>
+            <View style={[styles.btn, { backgroundColor: '#fff' }]}>
+              {reminderOn ? <BellSimpleRinging size={18} color={colors.primaryStrong} weight="fill" /> : <BellSimple size={18} color={colors.primaryStrong} weight="bold" />}
+              <Txt variant="bodyStrong" color="#0A1440" style={{ fontFamily: 'Inter-ExtraBold' }}>
+                {reminderOn ? 'Te avisamos' : 'Recordarme'}
+              </Txt>
+            </View>
           </PressableScale>
         </View>
       ) : null}
@@ -107,8 +110,9 @@ const styles = StyleSheet.create({
   side: { flex: 1, alignItems: 'center', gap: 10 },
   center: { width: 116, alignItems: 'center' },
   venue: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 16 },
-  actions: { flexDirection: 'row', gap: 10, marginTop: 20 },
-  btn: { flex: 1, height: 44, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 22 },
+  btn: { height: 50, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  btnShadow: { shadowColor: '#3568FD', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
   btnGhost: { backgroundColor: 'rgba(6,10,23,0.38)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
 });
 

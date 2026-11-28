@@ -2,9 +2,10 @@
 
     <!-- Base application theme. -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
-        <!-- Arranque: fondo de marca con el escudo (sin pantalla blanca) -->
+        <!-- Arranque: fondo blanco con el escudo al centro (igual que la pantalla de carga) -->
         <item name="android:windowBackground">@drawable/launch_background</item>
-        <item name="android:statusBarColor">@color/lngt_ink</item>
+        <item name="android:statusBarColor">@color/lngt_splash</item>
+        <item name="android:windowLightStatusBar">true</item>
         <item name="android:navigationBarColor">@color/lngt_ink</item>
     </style>
 

@@ -499,7 +499,7 @@ function AppInner() {
             immersive ? 'transparent' : colors.statusBarBg
           }
           barStyle={
-            immersive ? 'light-content' : theme.statusBarStyle
+            immersive ? (currentRoute === 'Welcome' ? 'dark-content' : 'light-content') : theme.statusBarStyle
           }
           translucent={
             immersive
