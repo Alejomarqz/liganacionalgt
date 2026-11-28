@@ -118,3 +118,4 @@ build-sim/
 Build *.txt
 android/.kotlin/
 *.certSigningRequest
+services/push-state.json

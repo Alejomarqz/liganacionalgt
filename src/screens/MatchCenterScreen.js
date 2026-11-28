@@ -62,7 +62,9 @@ export default function MatchCenterScreen({ navigation, route }) {
   const { tv } = useLigaTV();
   const m = model?.match;
 
-  const [tab, setTab] = useState(null);
+  // Si viene de una notificación (ej. "Alineaciones confirmadas") abrimos esa pestaña
+  const PUSH_TAB = { alineaciones: 'lineups', lineups: 'lineups', 'estadísticas': 'stats', stats: 'stats', detalles: 'summary', summary: 'summary', previa: 'preview', preview: 'preview' };
+  const [tab, setTab] = useState(PUSH_TAB[String(route?.params?.initialTab || '').toLowerCase()] || null);
   // Pestaña inicial inteligente: previa si no ha empezado, resumen si ya rodó el balón
   const activeTab = tab || (m?.isScheduled ? 'preview' : 'summary');
 
