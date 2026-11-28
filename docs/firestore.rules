@@ -36,7 +36,7 @@ service cloud.firestore {
     // Reacciones: solo incrementos pequeños sobre los 5 contadores
     function smallInc(k) {
       return !(k in request.resource.data)
-        || (request.resource.data[k] is int
+        || (request.resource.data[k] is number
             && request.resource.data[k] >= (k in resource.data ? resource.data[k] : 0)
             && request.resource.data[k] <= (k in resource.data ? resource.data[k] : 0) + 20);
     }
@@ -51,13 +51,13 @@ service cloud.firestore {
     // ───────── Quiniela: pronósticos ─────────
     // Doc: {uid}_{roundId}. Cada escritura AGREGA un partido, solo antes del pitazo, y no se puede modificar después.
     function validPick(p) {
-      return p.home is int && p.away is int
+      return p.home is number && p.away is number
         && p.home >= 0 && p.home <= 20 && p.away >= 0 && p.away <= 20
         && p.kickoff is timestamp && request.time < p.kickoff;
     }
 
     match /quiniela_predictions/{docId} {
-      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      allow read: if signedIn() && (resource == null || resource.data.uid == request.auth.uid);
 
       allow create: if signedIn()
         && docId == request.auth.uid + '_' + request.resource.data.roundId
@@ -103,12 +103,12 @@ service cloud.firestore {
         && request.resource.data.nick is string
         && request.resource.data.nick.size() >= 3
         && request.resource.data.nick.size() <= 24
-        && request.resource.data.points is int
+        && request.resource.data.points is number
         && request.resource.data.points >= 0
         && request.resource.data.points <= 2000
-        && request.resource.data.exact is int
+        && request.resource.data.exact is number
         && request.resource.data.points >= request.resource.data.exact * 5
-        && request.resource.data.daily is int
+        && request.resource.data.daily is number
         && request.resource.data.daily >= 0
         && request.resource.data.daily <= 2200
         && request.resource.data.total == request.resource.data.points + request.resource.data.daily
@@ -117,12 +117,13 @@ service cloud.firestore {
 
     // ───────── Reto diario: un resultado por persona y día, sin cambios ─────────
     match /daily_results/{docId} {
-      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      // resource == null: permite comprobar "¿ya jugué hoy?" aunque el documento aún no exista
+      allow read: if signedIn() && (resource == null || resource.data.uid == request.auth.uid);
       allow create: if signedIn()
         && request.resource.data.uid == request.auth.uid
         && docId == request.auth.uid + '_' + request.resource.data.date
         && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && request.resource.data.tries is int
+        && request.resource.data.tries is number
         && request.resource.data.tries >= 1 && request.resource.data.tries <= 6
         && request.resource.data.won is bool
         && request.resource.data.points == (request.resource.data.won ? 7 - request.resource.data.tries : 0);
@@ -156,15 +157,15 @@ service cloud.firestore {
       allow read: if true;
       allow create: if signedIn()
         && request.resource.data.keys().hasOnly(['followersCount'])
-        && request.resource.data.followersCount is int
+        && request.resource.data.followersCount is number
         && request.resource.data.followersCount >= 0
         && request.resource.data.followersCount <= 1;
       allow update: if signedIn()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followersCount'])
-        && request.resource.data.followersCount is int
+        && request.resource.data.followersCount is number
         && request.resource.data.followersCount >= 0
-        && (request.resource.data.followersCount - (resource.data.followersCount is int ? resource.data.followersCount : 0)) <= 1
-        && (request.resource.data.followersCount - (resource.data.followersCount is int ? resource.data.followersCount : 0)) >= -1;
+        && (request.resource.data.followersCount - (resource.data.followersCount is number ? resource.data.followersCount : 0)) <= 1
+        && (request.resource.data.followersCount - (resource.data.followersCount is number ? resource.data.followersCount : 0)) >= -1;
 
       match /followers/{uid} {
         allow read: if true;
