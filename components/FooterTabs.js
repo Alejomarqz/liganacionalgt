@@ -60,7 +60,8 @@ function FooterTabs({ navigation, routeName = 'Home' }) {
   const { tv } = useLigaTV();
   return (
     <View style={[styles.container, { backgroundColor: colors.bgElevated, borderTopColor: colors.divider }]}>
-      {ITEMS.map((item) => (
+      {/* "En vivo" solo aparece mientras estamos transmitiendo */}
+      {ITEMS.filter((item) => item.key !== 'live' || tv?.active).map((item) => (
         <FooterItem key={item.key} item={item} active={item.activeRoutes.includes(routeName)} navigation={navigation} colors={colors} onAir={Boolean(tv?.active)} />
       ))}
     </View>

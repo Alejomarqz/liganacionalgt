@@ -10,7 +10,8 @@ import { formatKickoff } from '../../api/clock';
 function LigaTVBanner({ tv, onPress }) {
   const { colors } = useDesign();
   const upcoming = tv?.startsAt && tv.startsAt.getTime() > Date.now();
-  if (!tv?.active && !upcoming) return null;
+  // Solo cuando estamos al aire (sin anuncios de 'próxima transmisión')
+  if (!tv?.active) return null;
 
   return (
     <PressableScale onPress={onPress} style={{ marginHorizontal: 16 }}>
