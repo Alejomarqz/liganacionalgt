@@ -8,7 +8,7 @@
 import React, { useMemo, useState } from 'react';
 import { Image, ScrollView, Share, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CaretLeft, BellSimpleRinging, BellSimple, Television, PushPin, ShareNetwork, Play, X, ChatsCircle } from 'phosphor-react-native';
+import { CaretLeft, BellSimpleRinging, BellSimple, Television, PushPin, ShareNetwork, Play, X } from 'phosphor-react-native';
 
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
@@ -60,7 +60,7 @@ function NextShowHero({ show, insets, colors }) {
           {upcoming ? show.title : 'Nuestras transmisiones'}
         </Txt>
         <Txt variant="body" color="rgba(255,255,255,0.8)" style={{ marginTop: 4 }} numberOfLines={2}>
-          {upcoming ? `${formatKickoff(show.startsAt)}${show.hosts?.length ? ` · Con ${show.hosts.join(', ')}` : ''}` : 'Análisis, previas y la voz de la afición. Cuando salgamos al aire, lo verás aquí.'}
+          {upcoming ? `${formatKickoff(show.startsAt)}${show.hosts?.length ? ` · Con ${show.hosts.join(', ')}` : ''}` : 'Análisis, previas y la voz de la afición. Cuando salgamos al aire, aquí lo ves y comentas en el chat en vivo.'}
         </Txt>
         {upcoming ? (
           <>
@@ -180,7 +180,6 @@ export default function LigaTVScreen({ navigation }) {
   const { loading, tv } = useLigaTV();
   const shows = useLigaTVShows();
   const [episode, setEpisode] = useState(null);
-  const [tab, setTab] = useState('chat');
   const [footerH, setFooterH] = useState(0);
 
   // Próxima emisión: la del config o la primera programada
@@ -250,42 +249,7 @@ export default function LigaTVScreen({ navigation }) {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <NextShowHero show={next} insets={insets} colors={colors} />
 
-      {tv.chatEnabled ? (
-        <View style={[styles.switchRow, { backgroundColor: colors.surfaceHigh }]}>
-          {[
-            ['chat', 'Chat de la previa', ChatsCircle],
-            ['prog', 'Programación', Television],
-          ].map(([k, label, Icon]) => {
-            const on = tab === k;
-            return (
-              <PressableScale key={k} onPress={() => setTab(k)} style={{ flex: 1 }} accessibilityRole="tab" accessibilityState={{ selected: on }}>
-                <View style={[styles.switchBtn, on ? { backgroundColor: colors.primary } : null]}>
-                  <Icon size={16} color={on ? '#fff' : colors.textMuted} weight={on ? 'fill' : 'regular'} />
-                  <Txt variant="caption" color={on ? '#fff' : colors.textMuted} style={{ fontFamily: 'Inter-Bold', fontSize: 13 }}>
-                    {label}
-                  </Txt>
-                </View>
-              </PressableScale>
-            );
-          })}
-        </View>
-      ) : null}
-
-      <View style={{ flex: 1 }}>
-        {tv.chatEnabled && tab === 'chat' ? (
-          <View style={{ flex: 1, paddingBottom: footerPad }}>
-            <View style={[styles.chatNote, { borderBottomColor: colors.divider }]}>
-              <View style={[styles.onlineDot, { backgroundColor: colors.success || '#22C55E' }]} />
-              <Txt variant="caption" tone="muted" numberOfLines={1} style={{ flex: 1 }}>
-                {next?.startsAt ? `Arrancamos ${formatKickoff(next.startsAt)} · la plática ya empezó` : 'La transmisión aún no empieza · la plática ya empezó'}
-              </Txt>
-            </View>
-            <LiveChat streamId="main" admins={tv.admins} />
-          </View>
-        ) : (
-          programa
-        )}
-      </View>
+      <View style={{ flex: 1 }}>{programa}</View>
 
       <View onLayout={(e) => setFooterH(e.nativeEvent.layout.height)} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: insets.bottom, backgroundColor: colors.bgElevated }}>
         <FooterTabs navigation={navigation} routeName="LigaTV" />

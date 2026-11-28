@@ -12,6 +12,7 @@ import ScorersRail from '../features/scorers/ScorersRail';
 import { seasonLabel } from '../api/clock';
 import FooterTabs from '../../components/FooterTabs';
 import AdFooter from '../../ads/AdFooter';
+import NativeAdCard from '../../ads/NativeAdCard';
 
 const VIEWS = [
   { key: 'general', label: 'General' },
@@ -89,6 +90,7 @@ export default function TableScreen({ navigation }) {
         ) : (
           <StandingsTable rows={rows} loading={standings.loading} forms={forms} onPressTeam={openTeam} showLegend={view === 'general'} />
         )}
+        <NativeAdCard style={{ marginTop: 16 }} />
 
         {standings.projectionActive && view === 'general' ? (
           <Txt variant="caption" tone="muted" style={{ paddingHorizontal: 20, paddingTop: 8 }}>

@@ -56,7 +56,7 @@ function StandingsTable({ rows, loading, limit, forms = {}, highlightIds = [], r
           <Txt variant="overline" tone="muted" style={{ flex: 1 }}>Equipo</Txt>
           <Txt variant="overline" tone="muted" style={styles.pj}>PJ</Txt>
           <Txt variant="overline" tone="muted" style={styles.dg}>DG</Txt>
-          <Txt variant="overline" tone="muted" style={styles.form}>Forma</Txt>
+          <Txt variant="overline" tone="muted" style={[styles.form, { letterSpacing: 0.4 }]} numberOfLines={1} adjustsFontSizeToFit>Forma</Txt>
           <Txt variant="overline" tone="muted" style={styles.pts}>PTS</Txt>
         </View>
         {data.map((r, i) => {
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
   pos: { width: 22 },
   pj: { width: 28, textAlign: 'center' },
   dg: { width: 34, textAlign: 'center' },
-  form: { width: 44, textAlign: 'center' },
+  form: { width: 50, textAlign: 'center' },
   pts: { width: 34, textAlign: 'right' },
 });
 

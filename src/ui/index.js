@@ -12,3 +12,4 @@ export { default as Tabs } from './Tabs';
 export { default as FormStrip } from './FormStrip';
 export { default as Slash, ScoreSlash, Beams } from './Slash';
 export { default as StadiumBackdrop, ContentSheet } from './StadiumBackdrop';
+export { default as ConfirmSheet } from './ConfirmSheet';

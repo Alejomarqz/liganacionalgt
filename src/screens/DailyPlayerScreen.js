@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, Share, TextInput, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CaretLeft, ArrowUp, ArrowDown, Check, X, Fire, ShareNetwork, MagnifyingGlass } from 'phosphor-react-native';
+import { CaretLeft, ArrowUp, ArrowDown, Check, X, Fire, ShareNetwork, MagnifyingGlass, Gift } from 'phosphor-react-native';
 
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
@@ -12,6 +12,7 @@ import { useScorers } from '../api/liga';
 import { MAX_TRIES, BLUR_BY_TRY, buildPool, loadState, saveState, pickAnswer, compare, finishDay, shareText, todayKey } from '../features/games/daily';
 import { submitDaily, dailyPoints } from '../features/games/quinielaStore';
 import { getUid } from '../features/games/identity';
+import { isRewardedReady, showRewarded } from '../../ads/AdRewardedManager';
 import { useMatches } from '../api/liga';
 
 const norm = (s = '') => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -117,15 +118,32 @@ export default function DailyPlayerScreen({ navigation }) {
   };
 
   const tries = guesses.length;
-  const blur = done ? 0 : BLUR_BY_TRY[Math.min(tries, BLUR_BY_TRY.length - 1)];
+  // Pista extra por ver un anuncio (1 por día): adelanta una pista sin gastar intento
+  const bonus = today?.bonus || 0;
+  const level = tries + bonus;
+  const blur = done ? 0 : BLUR_BY_TRY[Math.min(level, BLUR_BY_TRY.length - 1)];
   const hints = answer
     ? [
-        tries >= 1 && answer.team ? { k: 'Club', v: answer.team.name, crest: answer.team } : null,
-        tries >= 2 && answer.number != null ? { k: 'Dorsal', v: String(answer.number) } : null,
-        tries >= 3 ? { k: 'Goles en el torneo', v: String(answer.goals) } : null,
-        tries >= 4 ? { k: 'Iniciales', v: answer.name.split(' ').map((w) => w[0]).join('. ') + '.' } : null,
+        level >= 1 && answer.team ? { k: 'Club', v: answer.team.name, crest: answer.team } : null,
+        level >= 2 && answer.number != null ? { k: 'Dorsal', v: String(answer.number) } : null,
+        level >= 3 ? { k: 'Goles en el torneo', v: String(answer.goals) } : null,
+        level >= 4 ? { k: 'Iniciales', v: answer.name.split(' ').map((w) => w[0]).join('. ') + '.' } : null,
       ].filter(Boolean)
     : [];
+  const canBonus = Boolean(answer) && !done && bonus < 1 && level < 4;
+  const [adReady, setAdReady] = useState(isRewardedReady());
+  useEffect(() => {
+    if (!canBonus) return undefined;
+    const t = setInterval(() => setAdReady(isRewardedReady()), 2000);
+    return () => clearInterval(t);
+  }, [canBonus]);
+  const takeBonus = async () => {
+    const ok = await showRewarded();
+    if (!ok) return;
+    const next = { ...state, days: { ...state.days, [todayKey()]: { ...(today || {}), answerId: answer.id, guesses: today?.guesses || [], bonus: 1 } } };
+    setState(next);
+    saveState(next);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -214,6 +232,22 @@ export default function DailyPlayerScreen({ navigation }) {
               </Txt>
             )}
 
+            {canBonus && adReady ? (
+              <PressableScale onPress={takeBonus} scaleTo={0.98} style={{ marginHorizontal: 16 }} accessibilityLabel="Ver un anuncio para recibir una pista extra">
+                <View style={[styles.bonus, { borderColor: colors.primary, backgroundColor: colors.primarySoft }]}>
+                  <Gift size={20} color={colors.primary} weight="fill" />
+                  <View style={{ flex: 1 }}>
+                    <Txt variant="bodyStrong" color={colors.primary}>
+                      Pista extra gratis
+                    </Txt>
+                    <Txt variant="caption" tone="secondary">
+                      Mira un video corto y desbloquea la siguiente pista sin gastar intento
+                    </Txt>
+                  </View>
+                </View>
+              </PressableScale>
+            ) : null}
+
             {!done ? (
               <View style={{ marginHorizontal: 16 }}>
                 <View style={[styles.search, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -268,6 +302,7 @@ export default function DailyPlayerScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  bonus: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed' },
   stat: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   photoRing: { padding: 4, borderRadius: 80, backgroundColor: 'rgba(255,255,255,0.18)' },
   photo: { width: 140, height: 140, borderRadius: 70 },

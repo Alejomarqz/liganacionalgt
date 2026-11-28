@@ -26,6 +26,7 @@ import { seasonLabel } from '../api/clock';
 import FooterTabs from '../../components/FooterTabs';
 import TeamSearchModal from '../../components/TeamSearchModal';
 import AdFooter from '../../ads/AdFooter';
+import NativeAdCard from '../../ads/NativeAdCard';
 
 const LOGO = require('../../resources/logogrande.png');
 
@@ -159,6 +160,8 @@ export default function HomeScreen({ navigation }) {
                 <EmptyState title="Sin partidos" message="No hay partidos para esta jornada." />
               )}
             </View>
+
+            <NativeAdCard />
 
             {/* 4 · Tabla */}
             <View>

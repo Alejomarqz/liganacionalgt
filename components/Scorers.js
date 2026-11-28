@@ -533,39 +533,15 @@ function RankBadge({
   position,
   isDark,
 }) {
-  const first =
-    position === 1;
-
+  // Podio: oro, plata, bronce · resto: legible en claro y oscuro
+  const PODIUM = { 1: GOLD, 2: '#C9D3E3', 3: '#E0A47A' };
+  const podium = PODIUM[position];
+  const bg = podium || (isDark ? 'rgba(255,255,255,0.10)' : '#E6EEFB');
+  const fg = podium ? '#17214F' : isDark ? '#FFFFFF' : '#15245F';
 
   return (
-    <View
-      style={[
-        styles.rankBadge,
-
-        {
-          backgroundColor:
-            first
-              ? GOLD
-              : isDark
-                ? 'rgba(255,255,255,0.06)'
-                : '#EEF4FC',
-        },
-      ]}
-    >
-      <Text
-        style={[
-          styles.rankText,
-
-          {
-            color:
-              first
-                ? '#17214F'
-                : '#15245F',
-          },
-        ]}
-      >
-        {position}
-      </Text>
+    <View style={[styles.rankBadge, { backgroundColor: bg }, !podium && isDark ? { borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)' } : null]}>
+      <Text style={[styles.rankText, { color: fg }]}>{position}</Text>
     </View>
   );
 }

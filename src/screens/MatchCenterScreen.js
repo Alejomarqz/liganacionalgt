@@ -24,6 +24,7 @@ import { useMatchReminder } from '../notifications/reminders';
 
 import PollCard from '../../components/PollCard';
 import AdFooter from '../../ads/AdFooter';
+import NativeAdCard from '../../ads/NativeAdCard';
 import { showInterstitialIfReady } from '../../ads/AdManager';
 
 const TABS = [
@@ -131,6 +132,13 @@ export default function MatchCenterScreen({ navigation, route }) {
         <View style={{ paddingTop: space[4], gap: space[5] }}>
           <OfflineBanner visible={offline} />
 
+          {/* Votación del partido: arriba en Resumen y Previa para que se vea al entrar */}
+          {pollMatch && (activeTab === 'summary' || activeTab === 'preview') ? (
+            <View style={{ paddingHorizontal: space[4] }}>
+              <PollCard match={pollMatch} />
+            </View>
+          ) : null}
+
           {activeTab === 'summary' ? (
             <>
               {m.isLive ? <LigaTVBanner tv={tv} onPress={() => navigation.navigate('LigaTV')} /> : null}
@@ -143,17 +151,14 @@ export default function MatchCenterScreen({ navigation, route }) {
                 </View>
               ) : null}
               <Timeline model={model} />
-              {pollMatch ? (
-                <View style={{ paddingHorizontal: space[4] }}>
-                  <PollCard match={pollMatch} />
-                </View>
-              ) : null}
             </>
           ) : null}
 
           {activeTab === 'lineups' ? <Lineups model={model} onPlayer={openPlayer} /> : null}
           {activeTab === 'stats' ? <StatsBars model={model} /> : null}
           {activeTab === 'preview' ? <Preview model={model} onMatch={openMatch} onTeam={openTeam} /> : null}
+
+          <NativeAdCard media />
 
           <View style={{ alignItems: 'center' }}>
             <AdFooter />

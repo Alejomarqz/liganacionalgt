@@ -54,7 +54,7 @@ const AD_UNITS = {
 
   // ── Native: inline en listas ──
   NATIVE_INLINE: IS_DEV
-    ? TestIds.NATIVE_ADVANCED
+    ? (TestIds.NATIVE || TestIds.NATIVE_ADVANCED)
     : ios
       ? 'ca-app-pub-5408077761010566/6231045311'    // iOS — native_inline
       : 'ca-app-pub-5408077761010566/9133496749',   // Android — native_inline

@@ -2,15 +2,17 @@
 // Quiniela de la jornada: pronostica el marcador de cada partido.
 // Se guarda solo, se cierra al pitazo y suma puntos con el resultado final.
 import React, { useCallback, useMemo, useState } from 'react';
-import { Alert, ScrollView, View, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CaretLeft, Minus, Plus, LockSimple, CheckCircle, Trophy } from 'phosphor-react-native';
+import { CaretLeft, Minus, Plus, LockSimple, CheckCircle, Trophy, Target } from 'phosphor-react-native';
 
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
-import { Txt, Surface, PressableScale, Pill, Slash, TeamCrest, SkeletonCard, EmptyState } from '../ui';
+import { Txt, Surface, PressableScale, Pill, Slash, TeamCrest, SkeletonCard, EmptyState, ConfirmSheet } from '../ui';
 import { formatDayHeader, formatTime24, gt, seasonLabel } from '../api/clock';
 import { savePick } from '../features/games/quinielaStore';
+import NativeAdCard from '../../ads/NativeAdCard';
+import { showInterstitialIfReady } from '../../ads/AdManager';
 import { useGameStats } from '../features/games/useGameStats';
 import { scorePick, isOpen, POINTS } from '../features/games/scoring';
 
@@ -44,27 +46,52 @@ function PickCard({ match, saved, onSave, colors }) {
   const [status, setStatus] = useState('idle'); // idle | saving | error
   const locked = Boolean(saved);
 
-  const confirm = () => {
-    Alert.alert(
-      'Confirmar pronóstico',
-      `${match.home?.name} ${h} – ${a} ${match.away?.name}\n\nUna vez confirmado ya no se puede cambiar.`,
-      [
-        { text: 'Revisar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          onPress: async () => {
-            setStatus('saving');
-            try {
-              await onSave(match, h, a);
-              setStatus('idle');
-            } catch {
-              setStatus('error');
-            }
-          },
-        },
-      ],
-    );
+  const [asking, setAsking] = useState(false);
+  const confirm = () => setAsking(true);
+  const doSave = async () => {
+    setStatus('saving');
+    try {
+      await onSave(match, h, a);
+      setStatus('idle');
+      setAsking(false);
+      setTimeout(() => showInterstitialIfReady('quiniela_pick').catch(() => {}), 600);
+    } catch {
+      setStatus('error');
+      setAsking(false);
+    }
   };
+
+  const confirmSheet = (
+    <ConfirmSheet
+      visible={asking}
+      Icon={Target}
+      title="¿Confirmas tu pronóstico?"
+      message="Una vez confirmado ya no se puede cambiar."
+      confirmLabel="Sí, confirmar"
+      cancelLabel="Revisar"
+      busy={status === 'saving'}
+      onCancel={() => status !== 'saving' && setAsking(false)}
+      onConfirm={doSave}
+    >
+      <View style={[styles.sheetScore, { backgroundColor: colors.band }]}>
+        <View style={styles.sheetTeam}>
+          <TeamCrest team={match.home} size={44} />
+          <Txt variant="caption" numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: 'Inter-SemiBold', marginTop: 6 }}>
+            {match.home?.name}
+          </Txt>
+        </View>
+        <Txt variant="display" style={{ fontSize: 40, lineHeight: 46, fontVariant: ['tabular-nums'] }}>
+          {h} – {a}
+        </Txt>
+        <View style={styles.sheetTeam}>
+          <TeamCrest team={match.away} size={44} />
+          <Txt variant="caption" numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: 'Inter-SemiBold', marginTop: 6 }}>
+            {match.away?.name}
+          </Txt>
+        </View>
+      </View>
+    </ConfirmSheet>
+  );
 
   const result = match.isFinished && saved ? scorePick(saved, { home: match.score.home, away: match.score.away }) : null;
 
@@ -160,6 +187,7 @@ function PickCard({ match, saved, onSave, colors }) {
           No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.
         </Txt>
       ) : null}
+      {confirmSheet}
     </Surface>
   );
 }
@@ -275,13 +303,16 @@ export default function QuinielaScreen({ navigation, route }) {
           ) : !roundMatches.length ? (
             <EmptyState title="Sin partidos" message="Esta jornada aún no tiene partidos." />
           ) : (
-            groups.map((g) => (
+            groups.map((g, gi) => (
               <View key={g.k} style={{ gap: space[3] }}>
                 <Txt variant="overline" tone="brand" style={{ paddingHorizontal: 20, marginTop: 6 }}>
                   {g.label}
                 </Txt>
-                {g.items.map((m) => (
-                  <PickCard key={m.id} match={m} saved={picks[String(m.id)]} onSave={onSave} colors={colors} />
+                {g.items.map((m, i) => (
+                  <React.Fragment key={m.id}>
+                    <PickCard match={m} saved={picks[String(m.id)]} onSave={onSave} colors={colors} />
+                    {gi === 0 && i === 1 ? <NativeAdCard /> : null}
+                  </React.Fragment>
                 ))}
               </View>
             ))
@@ -302,6 +333,8 @@ export default function QuinielaScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  sheetScore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, paddingHorizontal: 14, borderRadius: 18 },
+  sheetTeam: { width: 96, alignItems: 'center' },
   team: { flex: 1, alignItems: 'center', gap: 8 },
   center: { width: 150, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 14 },
   stepBtn: { width: 34, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
