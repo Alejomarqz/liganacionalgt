@@ -44,7 +44,7 @@ export function useMatches() {
     'matches',
     async () => {
       const raw = await api.matches();
-      return { version: raw?.version, matches: pickArray(raw, 'matches', 'data', 'items') };
+      return { version: raw?.version, seasonId: raw?.seasonId ?? null, matches: pickArray(raw, 'matches', 'data', 'items') };
     },
     {
       staleTime: 20000,
@@ -52,7 +52,7 @@ export function useMatches() {
     },
   );
   const matches = useMemo(() => (q.data?.matches || []).map(normalizeMatch).filter(Boolean), [q.data]);
-  return { ...q, matches };
+  return { ...q, matches, seasonId: q.data?.seasonId ?? null };
 }
 
 export function useStandings() {

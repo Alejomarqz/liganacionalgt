@@ -126,7 +126,7 @@ export default function HomeScreen({ navigation }) {
             {matchesQ.loading ? (
               <SkeletonCard height={220} style={{ marginHorizontal: space[5], backgroundColor: 'transparent', borderColor: 'transparent' }} />
             ) : featured ? (
-              <Featured match={featured} onOpen={openMatch} onPredict={() => navigation.navigate('Games', { matchId: featured.id })} />
+              <Featured match={featured} onOpen={openMatch} onPredict={() => navigation.navigate('Quiniela', { matchId: featured.id })} />
             ) : null}
           </View>
         </StadiumBackdrop>

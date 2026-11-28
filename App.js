@@ -101,6 +101,15 @@ import PositionsScreen
 import GamesScreen
   from './src/screens/GamesScreen';
 
+import QuinielaScreen
+  from './src/screens/QuinielaScreen';
+
+import RankingScreen
+  from './src/screens/RankingScreen';
+
+import DailyPlayerScreen
+  from './src/screens/DailyPlayerScreen';
+
 import ActiveNotificationsScreen
   from './components/ActiveNotifications';
 
@@ -745,6 +754,10 @@ function AppInner() {
                       GamesScreen
                     }
                   />
+
+                  <MainStack.Screen name="Quiniela" component={QuinielaScreen} />
+                  <MainStack.Screen name="Ranking" component={RankingScreen} />
+                  <MainStack.Screen name="DailyPlayer" component={DailyPlayerScreen} />
 
                   {/* LIGA TV (transmisiones en vivo propias) */}
 
