@@ -56,14 +56,32 @@ import {
    SCREENS
 ========================================================= */
 
+// v3: pantalla de carga animada (precarga datos del Inicio)
 import WelcomeScreen
-  from './components/Welcome';
+  from './src/screens/SplashScreen';
 
+// v3: pantallas de borde a borde (foto bajo la barra de estado)
+const IMMERSIVE_ROUTES = new Set(['Welcome', 'Home', 'Match', 'TeamScreen', 'Player', 'LigaTV', 'MyTeam', 'Games', 'LigaManager']);
+
+// v3: Home rediseñado sobre la API Liga Nacional GT
 import HomeScreen
-  from './components/Home';
+  from './src/screens/HomeScreen';
 
+import LigaTVScreen
+  from './src/screens/LigaTVScreen';
+
+import {
+  installLocalNotificationRouter,
+  pruneReminders,
+} from './src/notifications/reminders';
+
+import {
+  primeLogos,
+} from './src/api/logoRegistry';
+
+// v3: Match Center nuevo
 import MatchScreen
-  from './components/Match';
+  from './src/screens/MatchCenterScreen';
 
 import TeamsScreen
   from './components/Teams';
@@ -77,8 +95,24 @@ import ScheduleScreen
 import Calendar
   from './components/Calendar';
 
+// v3: Tabla nueva (General / Local / Visita)
 import PositionsScreen
-  from './components/Positions';
+  from './src/screens/TableScreen';
+
+import GamesScreen
+  from './src/screens/GamesScreen';
+
+import QuinielaScreen
+  from './src/screens/QuinielaScreen';
+
+import RankingScreen
+  from './src/screens/RankingScreen';
+
+import DailyPlayerScreen
+  from './src/screens/DailyPlayerScreen';
+
+import LigaManagerScreen
+  from './src/screens/LigaManagerScreen';
 
 import ActiveNotificationsScreen
   from './components/ActiveNotifications';
@@ -92,14 +126,17 @@ import ScorersScreen
 import WebviewScreen
   from './components/Webview';
 
+// v3: Perfil de equipo nuevo
 import TeamScreen
-  from './components/TeamScreen';
+  from './src/screens/TeamProfileScreen';
 
+// v3: Mi club (hub del equipo favorito)
 import MyTeamScreen
-  from './components/MyTeam';
+  from './src/screens/MyClubScreen';
 
+// v3: Perfil de jugador nuevo
 import PlayerScreen
-  from './components/PlayerScreen';
+  from './src/screens/PlayerProfileScreen';
 
 import More
   from './components/More';
@@ -239,6 +276,16 @@ function AppInner() {
       'Welcome',
     );
 
+  // v3: pantallas con foto arriba van de borde a borde (bajo la barra de estado)
+  const [
+    currentRoute,
+    setCurrentRoute,
+  ] =
+    React.useState('Welcome');
+
+  const immersive =
+    IMMERSIVE_ROUTES.has(currentRoute);
+
 
   const {
     theme,
@@ -310,6 +357,9 @@ function AppInner() {
 
       const initApp =
         async () => {
+
+          // Logos oficiales en memoria antes de pintar pantallas legacy
+          primeLogos();
 
           try {
 
@@ -439,20 +489,20 @@ function AppInner() {
               colors.headerBg,
           },
         ]}
-        edges={[
-          'top',
-        ]}
+        edges={
+          immersive ? [] : ['top']
+        }
       >
 
         <StatusBar
           backgroundColor={
-            colors.statusBarBg
+            immersive ? 'transparent' : colors.statusBarBg
           }
           barStyle={
-            theme.statusBarStyle
+            immersive ? (currentRoute === 'Welcome' ? 'dark-content' : 'light-content') : theme.statusBarStyle
           }
           translucent={
-            false
+            immersive
           }
         />
 
@@ -501,6 +551,8 @@ function AppInner() {
                       routeNameRef.current =
                         rn;
 
+                      setCurrentRoute(rn);
+
 
                       await analytics()
                         .logScreenView({
@@ -517,6 +569,15 @@ function AppInner() {
                     onNavigationReady(
                       navigationRef,
                     );
+
+                    // Recordatorios locales (Notifee): abrir partido / Liga TV al tocar
+                    try {
+                      pruneReminders();
+                      installLocalNotificationRouter(
+                        (name, params) =>
+                          navigationRef.current?.navigate(name, params),
+                      );
+                    } catch {}
 
                   }
                 }
@@ -542,6 +603,8 @@ function AppInner() {
 
                         routeNameRef.current =
                           currentName;
+
+                        setCurrentRoute(currentName);
 
 
                         await analytics()
@@ -683,6 +746,30 @@ function AppInner() {
                     }
                     options={
                       DETAIL_SCREEN
+                    }
+                  />
+
+
+                  {/* JUEGOS (quiniela y reto diario) */}
+
+                  <MainStack.Screen
+                    name="Games"
+                    component={
+                      GamesScreen
+                    }
+                  />
+
+                  <MainStack.Screen name="Quiniela" component={QuinielaScreen} />
+                  <MainStack.Screen name="Ranking" component={RankingScreen} />
+                  <MainStack.Screen name="DailyPlayer" component={DailyPlayerScreen} />
+                  <MainStack.Screen name="LigaManager" component={LigaManagerScreen} />
+
+                  {/* LIGA TV (transmisiones en vivo propias) */}
+
+                  <MainStack.Screen
+                    name="LigaTV"
+                    component={
+                      LigaTVScreen
                     }
                   />
 

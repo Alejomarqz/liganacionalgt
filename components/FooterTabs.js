@@ -1,192 +1,69 @@
 // components/FooterTabs.js
-// Liga Nacional GT
-// Navegación inferior - diseño de referencia
-
+// Liga Nacional GT · Barra inferior v3 ("La Diagonal")
+// Indicador activo: trazo inclinado con el ángulo de la diagonal del escudo.
+// "En vivo" muestra un punto rojo cuando Liga TV está transmitiendo.
 import React, { memo } from 'react';
-
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
-
-import {
-  SoccerBall,
-  Trophy,
-  CalendarBlank,
-  TShirt,
-  SquaresFour,
-} from 'phosphor-react-native';
-
-const BLUE = '#285FFF';
-const INACTIVE = '#6073A4';
-const WHITE = '#FFFFFF';
+import { View, Pressable, StyleSheet } from 'react-native';
+import { House, CalendarBlank, Television, Trophy, GameController, TShirt } from 'phosphor-react-native';
+import { useDesign } from '../src/design/useDesign';
+import Txt from '../src/ui/Text';
+import { PulseDot } from '../src/ui/LiveBadge';
+import { useLigaTV } from '../src/features/ligatv/useLigaTV';
 
 const ITEMS = [
-  {
-    key: 'matches',
-    label: 'Partidos',
-    route: 'Home',
-    icon: SoccerBall,
-    activeRoutes: [
-      'Home',
-      'Match',
-      'Schedule',
-    ],
-  },
-  {
-    key: 'positions',
-    label: 'Posiciones',
-    route: 'Positions',
-    icon: Trophy,
-    activeRoutes: ['Positions'],
-  },
-  {
-    key: 'calendar',
-    label: 'Calendario',
-    route: 'Calendar',
-    icon: CalendarBlank,
-    activeRoutes: ['Calendar'],
-  },
-  {
-    key: 'myteam',
-    label: 'Mi Equipo',
-    route: 'MyTeam',
-    icon: TShirt,
-    activeRoutes: ['MyTeam', 'TeamScreen'],
-  },
-  {
-    key: 'more',
-    label: 'Más',
-    route: 'More',
-    icon: SquaresFour,
-    activeRoutes: [
-      'More',
-      'Settings',
-      'Teams',
-      'Players',
-      'Scorers',
-      'New',
-      'ActiveNotifications',
-    ],
-  },
+  { key: 'home', label: 'Inicio', route: 'Home', icon: House, activeRoutes: ['Home', 'Match'] },
+  { key: 'calendar', label: 'Partidos', route: 'Calendar', icon: CalendarBlank, activeRoutes: ['Calendar', 'Schedule'] },
+  { key: 'live', label: 'En vivo', route: 'LigaTV', icon: Television, activeRoutes: ['LigaTV'] },
+  { key: 'table', label: 'Tabla', route: 'Positions', icon: Trophy, activeRoutes: ['Positions', 'Scorers'] },
+  { key: 'games', label: 'Juegos', route: 'Games', icon: GameController, activeRoutes: ['Games', 'Quiniela', 'Ranking', 'DailyPlayer', 'LigaManager'] },
+  { key: 'myteam', label: 'Mi club', route: 'MyTeam', icon: TShirt, activeRoutes: ['MyTeam', 'TeamScreen'] },
 ];
 
-function FooterItem({
-  item,
-  active,
-  navigation,
-}) {
+const FooterItem = memo(function FooterItem({ item, active, navigation, colors, onAir }) {
   const Icon = item.icon;
-
-  const goToRoute = () => {
-    if (!navigation || !item.route) {
-      return;
-    }
-
-    navigation.navigate(item.route);
-  };
-
+  const isLive = item.key === 'live' && onAir;
   return (
-    <TouchableOpacity
-      activeOpacity={0.78}
-      onPress={goToRoute}
-      style={[
-        styles.item,
-        active && styles.itemActive,
-      ]}
+    <Pressable
+      accessibilityRole="tab"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={isLive ? 'En vivo ahora' : item.label}
+      onPress={() => navigation?.navigate(item.route)}
+      style={styles.item}
     >
-      <View style={styles.iconArea}>
-        <Icon
-          size={active ? 32 : 28}
-          color={active ? BLUE : INACTIVE}
-          weight={active ? 'fill' : 'regular'}
-        />
+      {active ? <View style={[styles.indicator, { backgroundColor: colors.primary }]} /> : null}
+      <View>
+        <Icon size={23} color={isLive ? colors.live : active ? colors.text : colors.textMuted} weight={active || isLive ? 'fill' : 'regular'} />
+        {isLive ? (
+          <View style={styles.liveDot}>
+            <PulseDot size={7} />
+          </View>
+        ) : null}
       </View>
-
-      <Text
-        numberOfLines={1}
-        style={[
-          styles.label,
-          active && styles.labelActive,
-        ]}
-      >
+      <Txt variant="caption" color={isLive ? colors.live : active ? colors.text : colors.textMuted} style={styles.label} numberOfLines={1}>
         {item.label}
-      </Text>
-    </TouchableOpacity>
+      </Txt>
+    </Pressable>
   );
-}
+});
 
-function FooterTabs({
-  navigation,
-  routeName = 'Home',
-}) {
+function FooterTabs({ navigation, routeName = 'Home' }) {
+  const { colors } = useDesign();
+  const { tv } = useLigaTV();
   return (
-    <View style={styles.container}>
-      {ITEMS.map(item => {
-        const active =
-          item.activeRoutes.includes(routeName);
-
-        return (
-          <FooterItem
-            key={item.key}
-            item={item}
-            active={active}
-            navigation={navigation}
-          />
-        );
-      })}
+    <View style={[styles.container, { backgroundColor: colors.bgElevated, borderTopColor: colors.divider }]}>
+      {ITEMS.map((item) => (
+        <FooterItem key={item.key} item={item} active={item.activeRoutes.includes(routeName)} navigation={navigation} colors={colors} onAir={Boolean(tv?.active)} />
+      ))}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    width: '100%',
-    height: 72,
-    paddingHorizontal: 8,
-    paddingTop: 3,
-    paddingBottom: 2,
-    backgroundColor: WHITE,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#E1E7F1',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-
-  item: {
-    flex: 1,
-    height: 68,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  itemActive: {
-    backgroundColor: '#EDF2FF',
-  },
-
-  iconArea: {
-    height: 39,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  label: {
-    color: INACTIVE,
-    fontFamily: 'Poppins-Regular',
-    fontSize: 10,
-    lineHeight: 15,
-    textAlign: 'center',
-  },
-
-  labelActive: {
-    color: BLUE,
-    fontFamily: 'Poppins-SemiBold',
-  },
+  container: { flexDirection: 'row', justifyContent: 'space-around', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, paddingBottom: 8 },
+  item: { alignItems: 'center', flex: 1, gap: 4 },
+  indicator: { position: 'absolute', top: -11, width: 24, height: 3, transform: [{ skewX: '-30deg' }] },
+  liveDot: { position: 'absolute', top: -1, right: -3 },
+  label: { fontSize: 10, lineHeight: 13, fontFamily: 'Inter-SemiBold' },
 });
 
 export default memo(FooterTabs);
-

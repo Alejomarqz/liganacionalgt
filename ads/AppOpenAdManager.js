@@ -76,3 +76,6 @@ export async function tryShowInterstitial() {
     return false;
   }
 }
+// Alias usado por App.js. Antes no existía: la llamada lanzaba TypeError
+// y cortaba la inicialización de los anuncios recompensados (initRewarded).
+export const initAppOpenAd = initInterstitial;

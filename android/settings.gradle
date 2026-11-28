@@ -22,8 +22,10 @@ dependencyResolutionManagement {
     mavenCentral()
     google()
 
-    // ✅ Repositorio necesario para Notifee
-    maven { url = uri("https://maven.notifee.app") }
+    // ✅ Notifee trae su librería nativa (app.notifee:core) DENTRO del paquete npm.
+    //    Con PREFER_SETTINGS el repositorio que declara el módulo se ignora,
+    //    así que hay que apuntarlo aquí (no existe un maven público de Notifee).
+    maven { url = uri(file("../node_modules/@notifee/react-native/android/libs")) }
 
     exclusiveContent {
       forRepository {

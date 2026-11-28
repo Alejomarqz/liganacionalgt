@@ -30,6 +30,7 @@ import {
 } from '../utils/notificationconfig';
 
 import { useTheme } from '../utils/ThemeContext';
+import { getTeamLogo } from '../src/api/logoRegistry';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -179,9 +180,7 @@ function NotificationBanner({ notification, progressAnim, onDismiss, colors }) {
   const displayBody = body || buildAutoBody(notification);
 
   const logoId = teamId || homeTeamId || awayTeamId;
-  const logoUrl = logoId
-    ? `https://futbolchapin.net/edit/logos/${logoId}.webp`
-    : null;
+  const logoUrl = notification.logo || getTeamLogo(logoId);
 
   const cardBg = colors.card || colors.surface || colors.appBg || '#FFFFFF';
   const titleColor = colors.text || '#111827';

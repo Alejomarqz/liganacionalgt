@@ -88,7 +88,7 @@ export const darkColors = {
   // Fondos
   appBg:           '#0E1120',
   screenBg:        '#0E1120',
-  headerBg:        '#161929',
+  headerBg:        '#070C1C',
   cardBg:          '#1C2035',
   cardBgAlt:       '#222640',
   statusBarBg:     '#161929',

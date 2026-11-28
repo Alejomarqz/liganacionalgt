@@ -7,6 +7,7 @@ import {
   API_STADIUM_IMG_BASE,
   API_STADIUM_IMG_EXT,
 } from '@env';
+import { getTeamLogo } from '../src/api/logoRegistry';
 
 const trimEndSlash = (s = '') => String(s).replace(/\/+$/, '');
 const withDot = (ext, def) => (ext || def).startsWith('.') ? (ext || def) : `.${ext || def}`;
@@ -23,9 +24,9 @@ const padLeft = (v, len=3) => String(v).padStart(len, '0');
 const BUST = ''; // '1' | '2' | '' (vacío = sin bust)
 const withBust = (url) => !BUST ? url : `${url}${url.includes('?') ? '&' : '?'}v=${BUST}`;
 
-const PBASE = trimEndSlash(API_PLAYER_IMG_BASE || 'https://futbolchapin.net/edit/jugadores');
-const LBASE = trimEndSlash(API_LOGO_IMG_BASE   || 'https://futbolchapin.net/edit/logos');
-const SBASE = trimEndSlash(API_STADIUM_IMG_BASE|| 'https://futbolchapin.net/edit/estadios');
+const PBASE = trimEndSlash(API_PLAYER_IMG_BASE || '');
+const LBASE = trimEndSlash(API_LOGO_IMG_BASE   || '');
+const SBASE = trimEndSlash(API_STADIUM_IMG_BASE|| '');
 
 const PEXT = withDot(API_PLAYER_IMG_EXT,  '.webp');
 const LEXT = withDot(API_LOGO_IMG_EXT,    '.webp');
@@ -42,10 +43,11 @@ export const defaultLogo    = () => (LBASE ? withBust(`${LBASE}/default${LEXT}`)
 export const defaultStadium = () => (SBASE ? withBust(`${SBASE}/default${SEXT}`) : null);
 
 export const logoUriCandidates = (id) => {
-  console.log('Logo Uri Candidates - ID recibido:', id);  // Agregado para depuración
+  // v3: primero el logo oficial de la API Liga Nacional GT
+  const official = getTeamLogo(id);
+  if (official || !LBASE) return official ? [official] : [];
   const ids = [];
   const raw = String(id || '').trim();  // Asegúrate de que el id esté en formato correcto
-  console.log('teamId procesado:', raw); // Asegúrate de que se haya procesado correctamente
 
   if (!raw) return [];
 
@@ -70,14 +72,12 @@ export const logoUriCandidates = (id) => {
   const def = defaultLogo();
   if (def) ids.push(def);
 
-  // Imprime las URLs generadas para depuración
-  console.log('URLs generadas para el logo del equipo con ID:', id);
-  console.log(ids);  // Verifica las URLs generadas en el console
 
   return ids;
 };
 
 export const stadiumUriCandidates = (id) => {
+  if (!SBASE) return [];
   const ids = [];
   const raw = String(id || '').trim();
   if (!raw) return [];
@@ -99,6 +99,7 @@ export const stadiumUriCandidates = (id) => {
 };
 
 export const playerUriCandidates = (id) => {
+  if (!PBASE) return [];
   const ids = [];
   const raw = String(id || '').trim();
   if (!raw) return [];

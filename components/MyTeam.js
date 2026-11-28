@@ -89,46 +89,46 @@ const FAVORITE_TEAM_KEY =
 ========================================================= */
 
 const SELECTOR_BG =
-  require('../resources/home/featured-match-bg.png');
+  require('../resources/home/featured-match-bg.jpg');
 
 
 const TEAM_HEROES = {
 
   antigua:
-    require('../resources/myteam/antigua.png'),
+    require('../resources/myteam/antigua.jpg'),
 
   aurora:
-    require('../resources/myteam/aurora.png'),
+    require('../resources/myteam/aurora.jpg'),
 
   coban:
-    require('../resources/myteam/coban.png'),
+    require('../resources/myteam/coban.jpg'),
 
   comunicaciones:
-    require('../resources/myteam/comunicaciones.png'),
+    require('../resources/myteam/comunicaciones.jpg'),
 
   guastatoya:
-    require('../resources/myteam/guastatoya.png'),
+    require('../resources/myteam/guastatoya.jpg'),
 
   malacateco:
-    require('../resources/myteam/malacateco.png'),
+    require('../resources/myteam/malacateco.jpg'),
 
   marquense:
-    require('../resources/myteam/marquense.png'),
+    require('../resources/myteam/marquense.jpg'),
 
   mixco:
-    require('../resources/myteam/mixco.png'),
+    require('../resources/myteam/mixco.jpg'),
 
   municipal:
-    require('../resources/myteam/municipal.png'),
+    require('../resources/myteam/municipal.jpg'),
 
   'san-pedro':
-    require('../resources/myteam/san-pedro.png'),
+    require('../resources/myteam/san-pedro.jpg'),
 
   suchitepequez:
-    require('../resources/myteam/suchitepequez.png'),
+    require('../resources/myteam/suchitepequez.jpg'),
 
   xelaju:
-    require('../resources/myteam/xelaju.png'),
+    require('../resources/myteam/xelaju.jpg'),
 };
 
 

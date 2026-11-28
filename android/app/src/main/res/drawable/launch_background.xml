@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Arranque nativo: azul noche de la marca + escudo al centro (igual que la pantalla de carga) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+  <item android:drawable="@color/lngt_splash" />
+  <item>
+    <bitmap android:gravity="center" android:src="@drawable/splash_logo" />
+  </item>
+</layer-list>

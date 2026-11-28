@@ -1,34 +1,27 @@
-import React, { useState, useEffect } from 'react';
+// components/LogoImg.js
+// Logo de equipo desde la API Liga Nacional GT.
+// Prioridad: uri explícita → team.logo → registro global por teamId → fallback local.
+import React, { useState } from 'react';
 import { Image } from 'react-native';
-import { logoUriCandidates } from '../utils/imagePaths'; // Función que genera las URLs del logo
+import { getTeamLogo } from '../src/api/logoRegistry';
 
-export default function LogoImg({ teamId, size = 18, style, resizeMode = 'contain', ...rest }) {
+const FALLBACK = require('../resources/logo_fallback.png');
 
-  if (!teamId) {
-    console.log("No se pasó el teamId correctamente");
-    return null; // No renderizamos nada si no hay teamId
-  }
+export default function LogoImg({ teamId, team, uri, size = 18, style, resizeMode = 'contain', ...rest }) {
+  const [failed, setFailed] = useState(false);
+  const resolved = uri || team?.logo || getTeamLogo(teamId ?? team?.id);
+  const source = !resolved || failed ? FALLBACK : { uri: resolved };
 
-  const [logoUri, setLogoUri] = useState(null); // Empezamos sin logo (o null)
-  const candidates = logoUriCandidates(teamId) || []; // Generamos las URLs del logo
-
-  // Solo actualizar logoUri si cambian los candidatos
-  useEffect(() => {
-    if (candidates.length > 0 && candidates[0] !== logoUri) {
-      setLogoUri(candidates[0]); // Actualizamos solo si hay un cambio
-    }
-  }, [teamId, candidates, logoUri]); // Solo cuando teamId o candidates cambian
-
-  // Si no hay logoUri, no renderizamos nada
-  if (!logoUri) return null;
-
-    return (
+  return (
     <Image
-      source={{ uri: logoUri }}
+      source={source}
       style={[{ width: size, height: size }, style]}
       resizeMode={resizeMode}
-      {...rest}   // ✅ esto permite onLoad/onError
+      {...rest}
+      onError={(e) => {
+        setFailed(true);
+        rest.onError?.(e);
+      }}
     />
   );
-
 }
