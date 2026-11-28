@@ -65,14 +65,16 @@ service cloud.firestore {
         && request.resource.data.picks.keys().size() == 1
         && validPick(request.resource.data.picks[request.resource.data.picks.keys()[0]]);
 
-      // Se agrega un partido NUEVO a la jornada; un pronóstico confirmado no se cambia
+      // Se agrega un partido NUEVO a la jornada; un pronóstico confirmado no se cambia.
+      // La app indica en lastMatchId cuál partido agrega (las reglas no pueden recorrer un Set).
       allow update: if signedIn()
         && resource.data.uid == request.auth.uid
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.roundId == resource.data.roundId
-        && request.resource.data.picks.diff(resource.data.picks).affectedKeys().size() == 1
-        && request.resource.data.picks.diff(resource.data.picks).addedKeys().size() == 1
-        && validPick(request.resource.data.picks[request.resource.data.picks.diff(resource.data.picks).addedKeys().toList()[0]]);
+        && request.resource.data.lastMatchId is string
+        && !(request.resource.data.lastMatchId in resource.data.picks)
+        && request.resource.data.picks.diff(resource.data.picks).affectedKeys().hasOnly([request.resource.data.lastMatchId])
+        && validPick(request.resource.data.picks[request.resource.data.lastMatchId]);
 
       allow delete: if false;
     }

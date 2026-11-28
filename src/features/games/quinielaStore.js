@@ -51,6 +51,7 @@ export async function savePick({ uid, seasonId, match, home, away }) {
       uid,
       roundId,
       seasonId: seasonId ?? null,
+      lastMatchId: String(match.id), // las reglas validan solo este partido nuevo
       picks: {
         [String(match.id)]: {
           home: Math.round(Math.max(0, Math.min(20, Number(home) || 0))),
