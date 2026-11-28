@@ -20,4 +20,20 @@ try {
   }
 } catch (_) {}
 
+// Ignorar carpetas temporales de compilación nativa (en Windows Metro se cae con ENOENT
+// cuando Gradle crea y borra archivos dentro de node_modules/*/android/.cxx o /build)
+const esc = (p) => p.replace(/[/\\]/g, '[/\\\\]');
+const blockList = [
+  new RegExp(esc('/android/.cxx/') + '.*'),
+  new RegExp(esc('/android/build/') + '.*'),
+  new RegExp(esc('/node_modules/') + '[^/\\\\]+' + esc('/android/.cxx/') + '.*'),
+  new RegExp(esc('/ios/build/') + '.*'),
+  new RegExp(esc('/ios/Pods/') + '.*'),
+];
+const prev = config.resolver?.blockList;
+config.resolver = {
+  ...config.resolver,
+  blockList: [...(Array.isArray(prev) ? prev : prev ? [prev] : []), ...blockList],
+};
+
 module.exports = config;
