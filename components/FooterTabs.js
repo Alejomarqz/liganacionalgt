@@ -15,7 +15,7 @@ const ITEMS = [
   { key: 'calendar', label: 'Partidos', route: 'Calendar', icon: CalendarBlank, activeRoutes: ['Calendar', 'Schedule'] },
   { key: 'live', label: 'En vivo', route: 'LigaTV', icon: Television, activeRoutes: ['LigaTV'] },
   { key: 'table', label: 'Tabla', route: 'Positions', icon: Trophy, activeRoutes: ['Positions', 'Scorers'] },
-  { key: 'games', label: 'Juegos', route: 'Games', icon: GameController, activeRoutes: ['Games', 'Quiniela', 'Ranking', 'DailyPlayer'] },
+  { key: 'games', label: 'Juegos', route: 'Games', icon: GameController, activeRoutes: ['Games', 'Quiniela', 'Ranking', 'DailyPlayer', 'LigaManager'] },
   { key: 'myteam', label: 'Mi club', route: 'MyTeam', icon: TShirt, activeRoutes: ['MyTeam', 'TeamScreen'] },
 ];
 

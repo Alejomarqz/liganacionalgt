@@ -39,13 +39,21 @@ export function useHome() {
   });
 }
 
+/* Fetchers con la misma forma que guardan los hooks (para precargar en el splash) */
+export const fetchers = {
+  home: () => api.home(),
+  matches: async () => {
+    const raw = await api.matches();
+    return { version: raw?.version, seasonId: raw?.seasonId ?? null, matches: pickArray(raw, 'matches', 'data', 'items') };
+  },
+  standings: () => api.standings(),
+  scorers: () => api.scorers(),
+};
+
 export function useMatches() {
   const q = useQuery(
     'matches',
-    async () => {
-      const raw = await api.matches();
-      return { version: raw?.version, seasonId: raw?.seasonId ?? null, matches: pickArray(raw, 'matches', 'data', 'items') };
-    },
+    fetchers.matches,
     {
       staleTime: 20000,
       refetchInterval: (d) => (d?.matches?.some((m) => m.isLive) ? LIVE_POLL : IDLE_POLL),
@@ -62,7 +70,7 @@ export function useStandings() {
 }
 
 export function useScorers() {
-  const q = useQuery('scorers', () => api.scorers(), { staleTime: 120000 });
+  const q = useQuery('scorers', fetchers.scorers, { staleTime: 120000 });
   const rows = useMemo(() => pickArray(q.data, 'scorers', 'data').map(normalizeScorer), [q.data]);
   return { ...q, rows };
 }

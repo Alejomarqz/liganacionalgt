@@ -56,11 +56,12 @@ import {
    SCREENS
 ========================================================= */
 
+// v3: pantalla de carga animada (precarga datos del Inicio)
 import WelcomeScreen
-  from './components/Welcome';
+  from './src/screens/SplashScreen';
 
 // v3: pantallas de borde a borde (foto bajo la barra de estado)
-const IMMERSIVE_ROUTES = new Set(['Home', 'Match', 'TeamScreen', 'Player', 'LigaTV', 'MyTeam', 'Games']);
+const IMMERSIVE_ROUTES = new Set(['Welcome', 'Home', 'Match', 'TeamScreen', 'Player', 'LigaTV', 'MyTeam', 'Games', 'LigaManager']);
 
 // v3: Home rediseñado sobre la API Liga Nacional GT
 import HomeScreen
@@ -109,6 +110,9 @@ import RankingScreen
 
 import DailyPlayerScreen
   from './src/screens/DailyPlayerScreen';
+
+import LigaManagerScreen
+  from './src/screens/LigaManagerScreen';
 
 import ActiveNotificationsScreen
   from './components/ActiveNotifications';
@@ -758,6 +762,7 @@ function AppInner() {
                   <MainStack.Screen name="Quiniela" component={QuinielaScreen} />
                   <MainStack.Screen name="Ranking" component={RankingScreen} />
                   <MainStack.Screen name="DailyPlayer" component={DailyPlayerScreen} />
+                  <MainStack.Screen name="LigaManager" component={LigaManagerScreen} />
 
                   {/* LIGA TV (transmisiones en vivo propias) */}
 

@@ -1,104 +1,87 @@
 // src/screens/GamesScreen.js
-// Juegos v3 · tu temporada, quiniela con cuenta regresiva, reto del día,
-// podio nacional y tus ligas.
+// Juegos · siempre en modo "juego" (oscuro, con brillo azul), sin importar el tema.
+// Protagonistas: Quiniela y ¿Quién es el jugador? · Liga Manager: próximamente.
 import React, { useCallback, useMemo, useState } from 'react';
 import { Image, ScrollView, View, StyleSheet } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Target, UserFocus, UsersThree, CaretRight, Fire, Crown, Plus, CheckCircle } from 'phosphor-react-native';
+import { Target, Fire, Trophy, CaretRight, LockSimple, CheckCircle, Question, Clock } from 'phosphor-react-native';
 import LinearGradient from 'react-native-linear-gradient';
 
-import { useDesign } from '../design/useDesign';
-import { CHIP_SKEW } from '../design/tokens';
-import { Txt, Surface, SectionHeader, PressableScale, StadiumBackdrop, TeamCrest } from '../ui';
+import { palette, CHIP_SKEW } from '../design/tokens';
+import { Txt, PressableScale, TeamCrest } from '../ui';
 import { useScorers } from '../api/liga';
 import { useCountdown, seasonLabel } from '../api/clock';
 import { useGameStats } from '../features/games/useGameStats';
-import { useMyLeagues } from '../features/games/quinielaStore';
 import { isOpen } from '../features/games/scoring';
 import { loadState, todayKey, buildPool, pickAnswer, MAX_TRIES } from '../features/games/daily';
 import FooterTabs from '../../components/FooterTabs';
 import PollCard from '../../components/PollCard';
 
+// Paleta fija del modo juego
+const G = { bg: '#04060E', card: 'rgba(255,255,255,0.055)', line: 'rgba(255,255,255,0.10)', sub: '#9AA3BF', mut: '#5E6888', gold: '#FFC24B', green: '#2ED3A0', blue: palette.sky };
 const pad = (n) => String(n).padStart(2, '0');
 
-function CloseIn({ date, colors }) {
-  const c = useCountdown(date);
-  if (!date || c.done) return null;
-  const text = c.days > 0 ? `${c.days}d ${pad(c.hours)}h` : `${pad(c.hours)}:${pad(c.minutes)}:${pad(c.seconds)}`;
+function Title({ children, right }) {
   return (
-    <Txt variant="caption" color="rgba(255,255,255,0.85)" style={{ fontFamily: 'Inter-SemiBold' }}>
-      El próximo partido cierra en <Txt variant="caption" color="#fff" style={{ fontFamily: 'Inter-ExtraBold', fontVariant: ['tabular-nums'] }}>{text}</Txt>
-    </Txt>
+    <View style={styles.title}>
+      <View style={styles.slash} />
+      <Txt variant="h2" color="#fff" style={{ flex: 1 }}>
+        {children}
+      </Txt>
+      {right}
+    </View>
   );
 }
 
-function SeasonStat({ value, label, icon }) {
+function CloseIn({ date }) {
+  const c = useCountdown(date);
+  if (!date || c.done) return null;
   return (
-    <View style={{ flex: 1, alignItems: 'center', gap: 2 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-        {icon}
-        <Txt variant="h1" color="#fff" style={{ fontSize: 28, lineHeight: 32, fontVariant: ['tabular-nums'] }}>
-          {value}
+    <View style={styles.row}>
+      <Clock size={13} color="rgba(255,255,255,0.8)" weight="fill" />
+      <Txt variant="caption" color="rgba(255,255,255,0.85)" style={{ fontFamily: 'Inter-SemiBold' }}>
+        Cierra en{' '}
+        <Txt variant="caption" color="#fff" style={{ fontFamily: 'Inter-ExtraBold', fontVariant: ['tabular-nums'] }}>
+          {c.days > 0 ? `${c.days}d ${pad(c.hours)}h` : `${pad(c.hours)}:${pad(c.minutes)}:${pad(c.seconds)}`}
         </Txt>
-      </View>
-      <Txt variant="caption" color="rgba(255,255,255,0.75)">
-        {label}
       </Txt>
     </View>
   );
 }
 
-function Podium({ rows, myUid, colors }) {
-  const top = rows.slice(0, 3);
-  if (!top.length) return null;
-  const order = [top[1], top[0], top[2]].filter(Boolean);
-  const heights = { 1: 92, 2: 68, 3: 52 };
+/** Pila de cartas para el adelanto de Liga Manager */
+function CardStack() {
+  const card = (colors, rot, x, y, z) => (
+    <View style={{ position: 'absolute', left: x, top: y, zIndex: z, transform: [{ rotate: `${rot}deg` }] }}>
+      <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.miniCard}>
+        <View style={styles.miniShine} />
+        <View style={styles.miniHead} />
+        <View style={styles.miniBody} />
+      </LinearGradient>
+    </View>
+  );
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', gap: 10, paddingHorizontal: 16 }}>
-      {order.map((r) => {
-        const pos = top.indexOf(r) + 1;
-        const me = r.uid === myUid;
-        return (
-          <View key={r.uid} style={{ flex: 1, alignItems: 'center', gap: 6 }}>
-            {pos === 1 ? <Crown size={22} color={colors.gold} weight="fill" /> : null}
-            <Txt variant="bodyStrong" numberOfLines={1} align="center" style={{ fontSize: 13 }}>
-              {r.nick}
-              {me ? ' (tú)' : ''}
-            </Txt>
-            <Txt variant="caption" tone="muted">
-              {r.total ?? r.points ?? 0} pts
-            </Txt>
-            <LinearGradient
-              colors={pos === 1 ? ['#3B7BFF', '#1A36B8'] : [colors.surfaceHigh, colors.surface]}
-              style={{ width: '100%', height: heights[pos], borderTopLeftRadius: 12, borderTopRightRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: pos === 1 ? 0 : 1, borderColor: colors.border }}
-            >
-              <Txt variant="h1" color={pos === 1 ? '#fff' : colors.text} style={{ fontSize: 30 }}>
-                {pos}
-              </Txt>
-            </LinearGradient>
-          </View>
-        );
-      })}
+    <View style={{ width: 120, height: 130 }}>
+      {card(['#F3F5FA', '#8A94A8'], -14, 4, 18, 1)}
+      {card(['#3B7BFF', '#0A1440'], 12, 46, 14, 2)}
+      {card(['#FFE9A3', '#B8862B'], -2, 24, 2, 3)}
     </View>
   );
 }
 
 export default function GamesScreen({ navigation }) {
-  const { colors } = useDesign();
   const insets = useSafeAreaInsets();
-  const { uid, matchesQ, preds, totals, rank, board } = useGameStats({ withBoard: true });
-  const leagues = useMyLeagues(uid);
+  const { nick, matchesQ, preds, totals, rank } = useGameStats({ withBoard: true });
   const scorers = useScorers();
 
-  // Quiniela: partidos abiertos, confirmados y el próximo cierre
   const open = useMemo(() => matchesQ.matches.filter(isOpen).sort((a, b) => a.kickoff - b.kickoff), [matchesQ.matches]);
-  const confirmed = open.filter((m) => preds.byRound[String(m.round?.id)]?.picks?.[String(m.id)]).length;
+  const picked = (m) => preds.byRound[String(m.round?.id)]?.picks?.[String(m.id)];
+  const confirmed = open.filter(picked).length;
   const pending = open.length - confirmed;
-  const nextClose = open.find((m) => !preds.byRound[String(m.round?.id)]?.picks?.[String(m.id)])?.kickoff || open[0]?.kickoff || null;
-  const progress = open.length ? confirmed / open.length : 0;
+  const nextClose = open.find((m) => !picked(m))?.kickoff || open[0]?.kickoff || null;
+  const nextMatch = open.find((m) => !picked(m)) || open[0] || null;
 
-  // Reto del día
   const [daily, setDaily] = useState(null);
   useFocusEffect(
     useCallback(() => {
@@ -111,160 +94,191 @@ export default function GamesScreen({ navigation }) {
   const dailyDone = Boolean(today?.done);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 110 + insets.bottom }} showsVerticalScrollIndicator={false}>
-        {/* Portada + tu temporada */}
-        <StadiumBackdrop height={insets.top + 300}>
-          <View style={{ paddingTop: insets.top + 18, paddingHorizontal: 20 }}>
-            <Txt variant="overline" color="rgba(255,255,255,0.8)">
-              Juega con la Liga · {seasonLabel()}
-            </Txt>
-            <Txt variant="display" color="#fff" style={{ marginTop: 4 }}>
-              Juegos
-            </Txt>
-            <View style={styles.seasonPanel}>
-              <SeasonStat value={totals.total} label="Puntos" />
-              <View style={styles.sep} />
-              <SeasonStat value={rank ? `#${rank}` : '–'} label="Nacional" />
-              <View style={styles.sep} />
-              <SeasonStat value={daily?.streak || 0} label="Racha" icon={<Fire size={18} color="#FFB020" weight="fill" />} />
-            </View>
-          </View>
-        </StadiumBackdrop>
+    <View style={{ flex: 1, backgroundColor: G.bg }}>
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+        <LinearGradient colors={['rgba(30,63,216,0.55)', 'rgba(10,20,64,0.25)', 'rgba(4,6,14,0)']} locations={[0, 0.35, 0.7]} style={StyleSheet.absoluteFill} />
+      </View>
 
-        <View style={{ gap: 26 }}>
-          {/* Quiniela */}
-          <View>
-            <SectionHeader title="Quiniela de la jornada" />
-            <PressableScale onPress={() => navigation.navigate('Quiniela')} style={{ marginHorizontal: 16 }}>
-              <LinearGradient colors={['#3B7BFF', '#2350E8', '#1A36B8']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.quiniela}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Target size={18} color="#fff" weight="fill" />
-                  <Txt variant="overline" color="rgba(255,255,255,0.9)">
-                    {open.length ? `${open.length} partidos abiertos` : 'Jornada cerrada'}
-                  </Txt>
-                </View>
-                <Txt variant="h1" color="#fff" style={{ marginTop: 8 }}>
-                  {!open.length ? 'Mira cómo te fue' : pending ? `Te faltan ${pending} pronóstico${pending === 1 ? '' : 's'}` : '¡Todo confirmado!'}
-                </Txt>
-                {open.length ? (
-                  <View style={{ marginTop: 12, gap: 8 }}>
-                    <View style={{ height: 6, backgroundColor: 'rgba(255,255,255,0.2)', overflow: 'hidden' }}>
-                      <View style={{ width: `${Math.max(progress * 100, 3)}%`, height: '100%', backgroundColor: '#fff', transform: [{ skewX: CHIP_SKEW }] }} />
-                    </View>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Txt variant="caption" color="rgba(255,255,255,0.85)">
-                        {confirmed} de {open.length} confirmados
-                      </Txt>
-                    </View>
-                    <CloseIn date={nextClose} colors={colors} />
-                  </View>
-                ) : null}
-                <View style={styles.cta}>
-                  <Txt variant="bodyStrong" color="#1A36B8" style={{ fontFamily: 'Inter-Bold' }}>
-                    {pending ? 'Pronosticar ahora' : 'Ver mi quiniela'}
-                  </Txt>
-                </View>
-              </LinearGradient>
-            </PressableScale>
-          </View>
-
-          {/* Reto del día */}
-          <View>
-            <SectionHeader title="Reto del día" />
-            <PressableScale onPress={() => navigation.navigate('DailyPlayer')} style={{ marginHorizontal: 16 }}>
-              <Surface style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                <View style={[styles.teaser, { backgroundColor: colors.surfaceHigh }]}>
-                  {answer?.photo ? (
-                    <Image source={{ uri: answer.photo }} blurRadius={dailyDone ? 0 : 22} style={{ width: '100%', height: '100%' }} />
-                  ) : (
-                    <UserFocus size={30} color={colors.primary} weight="duotone" />
-                  )}
-                </View>
-                <View style={{ flex: 1, gap: 3 }}>
-                  <Txt variant="h3">¿Quién es el jugador?</Txt>
-                  {dailyDone ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      {today?.won ? <CheckCircle size={14} color={colors.success} weight="fill" /> : null}
-                      <Txt variant="caption" tone={today?.won ? 'success' : 'secondary'} style={{ fontFamily: 'Inter-SemiBold' }}>
-                        {today?.won ? `Era ${answer?.name || ''} · ${today.tries}/${MAX_TRIES}` : 'Hoy no salió. Mañana hay otro.'}
-                      </Txt>
-                    </View>
-                  ) : (
-                    <Txt variant="caption" tone="secondary">
-                      Adivina al goleador escondido. Hasta 6 pts al ranking.
-                    </Txt>
-                  )}
-                  {answer?.team && !dailyDone ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                      <Fire size={13} color={colors.warning} weight="fill" />
-                      <Txt variant="caption" style={{ fontFamily: 'Inter-Bold' }}>
-                        Racha {daily?.streak || 0}
-                      </Txt>
-                    </View>
-                  ) : null}
-                </View>
-                <CaretRight size={16} color={colors.textMuted} weight="bold" />
-              </Surface>
-            </PressableScale>
-          </View>
-
-          {/* Podio */}
-          {board.rows.length ? (
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 12, paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
+        {/* Encabezado: quién eres y tus números */}
+        <View style={[styles.row, { paddingHorizontal: 20, justifyContent: 'space-between' }]}>
+          <View style={[styles.row, { gap: 10 }]}>
+            <LinearGradient colors={[palette.sky, palette.blue]} style={styles.avatar}>
+              <Txt variant="bodyStrong" color="#fff" style={{ fontFamily: 'InterDisplay-Black' }}>
+                {(nick || 'AF').slice(0, 2).toUpperCase()}
+              </Txt>
+            </LinearGradient>
             <View>
-              <SectionHeader title="Top de la temporada" onAction={() => navigation.navigate('Ranking')} actionLabel="Ranking completo" />
-              <Podium rows={board.rows} myUid={uid} colors={colors} />
+              <Txt variant="overline" color={G.sub} style={{ fontSize: 9.5 }}>
+                Juega con la Liga · {seasonLabel()}
+              </Txt>
+              <Txt variant="h2" color="#fff">
+                {nick || 'Jugador'}
+              </Txt>
             </View>
-          ) : null}
+          </View>
+          <PressableScale onPress={() => navigation.navigate('Ranking')} style={styles.pill}>
+            <Trophy size={15} color={G.gold} weight="fill" />
+            <Txt variant="bodyStrong" color="#fff" style={{ fontFamily: 'InterDisplay-ExtraBold' }}>
+              {rank ? `#${rank}` : '–'}
+            </Txt>
+          </PressableScale>
+        </View>
 
-          {/* Ligas */}
-          <View>
-            <SectionHeader title="Mis ligas" onAction={() => navigation.navigate('Ranking')} actionLabel={leagues.leagues.length ? 'Ver todas' : undefined} />
-            {leagues.leagues.length ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
-                {leagues.leagues.map((l) => (
-                  <PressableScale key={l.code} onPress={() => navigation.navigate('Ranking')}>
-                    <Surface style={{ width: 170, gap: 6 }}>
-                      <UsersThree size={20} color={colors.primary} weight="duotone" />
-                      <Txt variant="h3" numberOfLines={1}>
-                        {l.name}
-                      </Txt>
-                      <Txt variant="caption" tone="muted">
-                        {(l.members || []).length} personas · {l.code}
-                      </Txt>
-                    </Surface>
-                  </PressableScale>
-                ))}
-              </ScrollView>
-            ) : (
-              <PressableScale onPress={() => navigation.navigate('Ranking')} style={{ marginHorizontal: 16 }}>
-                <Surface style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-                  <View style={[styles.icon, { backgroundColor: colors.primarySoft }]}>
-                    <Plus size={22} color={colors.primary} weight="bold" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Txt variant="h3">Crea tu liga con amigos</Txt>
-                    <Txt variant="caption" tone="secondary">
-                      Comparte el código por WhatsApp y compitan cada jornada.
+        <View style={[styles.row, { gap: 8, paddingHorizontal: 20, marginTop: 14 }]}>
+          {[
+            [totals.total, 'Puntos', '#fff'],
+            [totals.exact, 'Exactos', G.green],
+            [daily?.streak || 0, 'Racha', G.gold],
+          ].map(([v, l, c]) => (
+            <View key={l} style={styles.stat}>
+              <Txt variant="h1" color={c} style={{ fontSize: 26, lineHeight: 30, fontVariant: ['tabular-nums'] }}>
+                {v}
+              </Txt>
+              <Txt variant="caption" color={G.sub}>
+                {l}
+              </Txt>
+            </View>
+          ))}
+        </View>
+
+        {/* ── QUINIELA ── */}
+        <Title>Quiniela de la jornada</Title>
+        <PressableScale onPress={() => navigation.navigate('Quiniela')} scaleTo={0.985} style={{ marginHorizontal: 16 }}>
+          <LinearGradient colors={['#3B7BFF', '#2350E8', '#14214F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
+            <View pointerEvents="none" style={styles.heroBeam} />
+            <View style={[styles.row, { gap: 8 }]}>
+              <Target size={17} color="#fff" weight="fill" />
+              <Txt variant="overline" color="rgba(255,255,255,0.9)">
+                Pronostica el marcador · Gana hasta 5 pts por partido
+              </Txt>
+            </View>
+
+            {nextMatch ? (
+              <View style={[styles.row, { marginTop: 16, justifyContent: 'center', gap: 16 }]}>
+                <TeamCrest team={nextMatch.home} size={50} />
+                <View style={{ alignItems: 'center' }}>
+                  <Txt variant="h1" color="#fff" style={{ fontSize: 30 }}>
+                    ? – ?
+                  </Txt>
+                  <Txt variant="caption" color="rgba(255,255,255,0.8)">
+                    {nextMatch.home?.short} vs {nextMatch.away?.short}
+                  </Txt>
+                </View>
+                <TeamCrest team={nextMatch.away} size={50} />
+              </View>
+            ) : null}
+
+            <Txt variant="h1" color="#fff" align="center" style={{ marginTop: 14, fontSize: 24, lineHeight: 28 }}>
+              {!open.length ? 'Mira cómo te fue en la jornada' : pending ? `Te faltan ${pending} de ${open.length}` : '¡Jornada completa!'}
+            </Txt>
+
+            {open.length ? (
+              <View style={{ marginTop: 12, gap: 8 }}>
+                <View style={styles.track}>
+                  <View style={[styles.trackFill, { width: `${Math.max((confirmed / open.length) * 100, 4)}%` }]} />
+                </View>
+                <View style={[styles.row, { justifyContent: 'space-between' }]}>
+                  <Txt variant="caption" color="rgba(255,255,255,0.85)">
+                    {confirmed}/{open.length} confirmados
+                  </Txt>
+                  <CloseIn date={nextClose} />
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.cta}>
+              <Txt variant="bodyStrong" color="#14214F" style={{ fontFamily: 'Inter-ExtraBold' }}>
+                {pending ? 'JUGAR AHORA' : 'VER MI QUINIELA'}
+              </Txt>
+            </View>
+          </LinearGradient>
+        </PressableScale>
+
+        {/* ── ¿QUIÉN ES EL JUGADOR? ── */}
+        <Title right={<Txt variant="caption" color={G.sub}>Nuevo cada día</Txt>}>¿Quién es el jugador?</Title>
+        <PressableScale onPress={() => navigation.navigate('DailyPlayer')} scaleTo={0.985} style={{ marginHorizontal: 16 }}>
+          <View style={styles.dailyCard}>
+            <View style={styles.dailyPhotoWrap}>
+              {answer?.photo ? (
+                <Image source={{ uri: answer.photo }} blurRadius={dailyDone ? 0 : 24} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              ) : null}
+              <LinearGradient colors={['rgba(4,6,14,0)', 'rgba(4,6,14,0.85)']} style={StyleSheet.absoluteFill} />
+              {!dailyDone ? (
+                <View style={styles.qmark}>
+                  <Question size={44} color="#fff" weight="bold" />
+                </View>
+              ) : null}
+            </View>
+            <View style={{ flex: 1, padding: 16, justifyContent: 'space-between' }}>
+              <View>
+                <Txt variant="overline" color={G.gold}>
+                  Reto diario
+                </Txt>
+                <Txt variant="h2" color="#fff" style={{ marginTop: 4 }}>
+                  {dailyDone ? (today?.won ? `¡Era ${answer?.short || answer?.name || ''}!` : 'Hoy no salió') : 'Adivina al goleador escondido'}
+                </Txt>
+                <Txt variant="caption" color={G.sub} style={{ marginTop: 4 }}>
+                  {dailyDone ? (today?.won ? `Acertaste en ${today.tries}/${MAX_TRIES}. Vuelve mañana.` : 'Mañana hay otro jugador.') : '6 intentos · hasta 6 pts al ranking'}
+                </Txt>
+              </View>
+              <View style={[styles.row, { justifyContent: 'space-between', marginTop: 10 }]}>
+                <View style={[styles.row, { gap: 5 }]}>
+                  <Fire size={15} color={G.gold} weight="fill" />
+                  <Txt variant="bodyStrong" color="#fff">
+                    Racha {daily?.streak || 0}
+                  </Txt>
+                </View>
+                {dailyDone ? (
+                  <CheckCircle size={22} color={today?.won ? G.green : G.mut} weight="fill" />
+                ) : (
+                  <View style={styles.smallCta}>
+                    <Txt variant="caption" color="#04060E" style={{ fontFamily: 'Inter-ExtraBold' }}>
+                      JUGAR
                     </Txt>
                   </View>
-                  <CaretRight size={16} color={colors.textMuted} weight="bold" />
-                </Surface>
-              </PressableScale>
-            )}
-          </View>
-
-          {/* Votación */}
-          <View>
-            <SectionHeader title="Votación del partido" />
-            <View style={{ paddingHorizontal: 16 }}>
-              <PollCard />
+                )}
+              </View>
             </View>
           </View>
+        </PressableScale>
+
+        {/* ── LIGA MANAGER (próximamente) ── */}
+        <Title>Liga Manager</Title>
+        <PressableScale onPress={() => navigation.navigate('LigaManager')} scaleTo={0.985} style={{ marginHorizontal: 16 }}>
+          <LinearGradient colors={['#1A1F33', '#0B0E1A']} style={styles.manager}>
+            <View style={{ flex: 1 }}>
+              <View style={[styles.row, { gap: 6 }]}>
+                <LockSimple size={13} color={G.gold} weight="fill" />
+                <Txt variant="overline" color={G.gold}>
+                  Próximamente
+                </Txt>
+              </View>
+              <Txt variant="h2" color="#fff" style={{ marginTop: 6 }}>
+                Colecciona cartas y sé el DT
+              </Txt>
+              <Txt variant="caption" color={G.sub} style={{ marginTop: 4 }}>
+                Abre sobres con jugadores reales, arma tu once y compite.
+              </Txt>
+              <View style={[styles.row, { gap: 4, marginTop: 10 }]}>
+                <Txt variant="caption" color="#fff" style={{ fontFamily: 'Inter-Bold' }}>
+                  Ver adelanto
+                </Txt>
+                <CaretRight size={12} color="#fff" weight="bold" />
+              </View>
+            </View>
+            <CardStack />
+          </LinearGradient>
+        </PressableScale>
+
+        {/* ── Votación ── */}
+        <Title>Votación del partido</Title>
+        <View style={{ paddingHorizontal: 16 }}>
+          <PollCard />
         </View>
       </ScrollView>
 
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: insets.bottom, backgroundColor: colors.bgElevated }}>
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: insets.bottom, backgroundColor: '#070C1C' }}>
         <FooterTabs navigation={navigation} routeName="Games" />
       </View>
     </View>
@@ -272,10 +286,24 @@ export default function GamesScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  seasonPanel: { flexDirection: 'row', alignItems: 'center', marginTop: 22, paddingVertical: 14, borderRadius: 16, backgroundColor: 'rgba(6,10,23,0.45)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  sep: { width: 1, height: 34, backgroundColor: 'rgba(255,255,255,0.15)' },
-  quiniela: { borderRadius: 20, padding: 18 },
-  cta: { marginTop: 16, height: 44, borderRadius: 10, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
-  teaser: { width: 64, height: 64, borderRadius: 32, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  icon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  title: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 20, marginTop: 28, marginBottom: 12 },
+  slash: { width: 7, height: 16, backgroundColor: palette.sky, transform: [{ skewX: '-20deg' }] },
+  avatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: G.card, borderWidth: 1, borderColor: G.line },
+  stat: { flex: 1, alignItems: 'center', paddingVertical: 12, borderRadius: 16, backgroundColor: G.card, borderWidth: 1, borderColor: G.line },
+  hero: { borderRadius: 22, padding: 18, overflow: 'hidden' },
+  heroBeam: { position: 'absolute', top: -80, bottom: -80, left: '55%', width: 90, backgroundColor: 'rgba(255,255,255,0.08)', transform: [{ skewX: '-20deg' }] },
+  track: { height: 6, backgroundColor: 'rgba(255,255,255,0.2)', overflow: 'hidden' },
+  trackFill: { height: '100%', backgroundColor: '#fff', transform: [{ skewX: CHIP_SKEW }] },
+  cta: { marginTop: 16, height: 48, borderRadius: 12, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  dailyCard: { flexDirection: 'row', borderRadius: 22, overflow: 'hidden', backgroundColor: G.card, borderWidth: 1, borderColor: G.line, minHeight: 170 },
+  dailyPhotoWrap: { width: 128, backgroundColor: '#111A33', overflow: 'hidden' },
+  qmark: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  smallCta: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, backgroundColor: G.gold },
+  manager: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 18, borderRadius: 22, borderWidth: 1, borderColor: 'rgba(255,194,75,0.25)', overflow: 'hidden' },
+  miniCard: { width: 64, height: 90, borderRadius: 10, overflow: 'hidden', padding: 8 },
+  miniShine: { position: 'absolute', top: -20, bottom: -20, left: 30, width: 14, backgroundColor: 'rgba(255,255,255,0.35)', transform: [{ skewX: '-20deg' }] },
+  miniHead: { width: 22, height: 22, borderRadius: 11, backgroundColor: 'rgba(0,0,0,0.25)', alignSelf: 'flex-end' },
+  miniBody: { marginTop: 4, width: 40, height: 20, borderTopLeftRadius: 20, borderTopRightRadius: 20, backgroundColor: 'rgba(0,0,0,0.25)', alignSelf: 'flex-end' },
 });
