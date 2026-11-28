@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   venue: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 16 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 20 },
   btn: { flex: 1, height: 44, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  btnGhost: { backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  btnGhost: { backgroundColor: 'rgba(6,10,23,0.38)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
 });
 
 export default memo(FeaturedMatch);

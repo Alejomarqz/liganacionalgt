@@ -16,7 +16,7 @@ import { useHome, useMatches, useStandings, useScorers, selectMatchday } from '.
 import FeaturedMatch from '../features/matches/FeaturedMatch';
 import FixtureList from '../features/matches/FixtureList';
 import StandingsTable, { computeForms } from '../features/standings/StandingsTable';
-import ScorersBoard from '../features/scorers/ScorersBoard';
+import ScorersRail from '../features/scorers/ScorersRail';
 import SeasonPulse from '../features/season/SeasonPulse';
 import LigaTVBanner from '../features/ligatv/LigaTVBanner';
 import { useLigaTV } from '../features/ligatv/useLigaTV';
@@ -120,7 +120,7 @@ export default function HomeScreen({ navigation }) {
         refreshControl={<RefreshControl refreshing={home.refreshing || matchesQ.refreshing} onRefresh={onRefresh} tintColor="#fff" colors={[colors.primaryStrong]} />}
       >
         {/* 1 · Foto del estadio + partido destacado */}
-        <StadiumBackdrop height={(featured?.isScheduled ? 490 : 430) + insets.top}>
+        <StadiumBackdrop height={(featured?.isScheduled ? 450 : 400) + insets.top}>
           <Header top={insets.top} onSearch={() => setSearchOpen(true)} onMore={() => navigation.navigate('More')} />
           <View style={{ paddingTop: 34 }}>
             {matchesQ.loading ? (
@@ -172,8 +172,8 @@ export default function HomeScreen({ navigation }) {
 
             {/* 5 · Goleadores */}
             <View>
-              <SectionHeader title="Goleadores" onAction={() => navigation.navigate('Scorers')} actionLabel="Tabla de goleo" />
-              <ScorersBoard
+              <SectionHeader title="Goleadores" onAction={() => navigation.navigate('Scorers')}  />
+              <ScorersRail
                 rows={scorers.rows}
                 loading={scorers.loading}
                 onPress={(it) => navigation.navigate('Player', { playerId: it.player.id, player: { ...it.player, team: it.team }, scope: 'guatemala' })}

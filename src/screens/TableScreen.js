@@ -8,7 +8,7 @@ import { useDesign } from '../design/useDesign';
 import { Txt, Pill, Slash, SectionHeader, OfflineBanner, ErrorState } from '../ui';
 import { useMatches, useStandings, useScorers } from '../api/liga';
 import StandingsTable, { computeForms } from '../features/standings/StandingsTable';
-import ScorersBoard from '../features/scorers/ScorersBoard';
+import ScorersRail from '../features/scorers/ScorersRail';
 import { seasonLabel } from '../api/clock';
 import FooterTabs from '../../components/FooterTabs';
 import AdFooter from '../../ads/AdFooter';
@@ -101,8 +101,8 @@ export default function TableScreen({ navigation }) {
         </View>
 
         <View style={{ marginTop: space[6] }}>
-          <SectionHeader title="Goleadores" onAction={() => navigation.navigate('Scorers')} actionLabel="Tabla de goleo" />
-          <ScorersBoard
+          <SectionHeader title="Goleadores" onAction={() => navigation.navigate('Scorers')}  />
+          <ScorersRail
             rows={scorers.rows}
             loading={scorers.loading}
             onPress={(it) => navigation.navigate('Player', { playerId: it.player.id, player: { ...it.player, team: it.team }, scope: 'guatemala' })}

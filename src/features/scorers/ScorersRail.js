@@ -38,7 +38,7 @@ const Card = memo(function Card({ item, index, onPress }) {
         </Txt>
       </View>
       <Photo player={item.player} team={item.team} size={58} colors={colors} />
-      <Txt variant="bodyStrong" numberOfLines={1} align="center" color={leader ? '#fff' : colors.text} style={{ marginTop: 8 }}>
+      <Txt variant="bodyStrong" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78} align="center" color={leader ? '#fff' : colors.text} style={{ marginTop: 8, alignSelf: 'stretch' }}>
         {item.player.name}
       </Txt>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
@@ -56,7 +56,7 @@ const Card = memo(function Card({ item, index, onPress }) {
     </>
   );
 
-  const shell = { width: 132, borderRadius: radius.lg, overflow: 'hidden', padding: 14, alignItems: 'center', gap: 2 };
+  const shell = { width: 140, borderRadius: radius.lg, overflow: 'hidden', padding: 14, alignItems: 'center', gap: 2 };
 
   return (
     <PressableScale onPress={() => onPress?.(item)}>
@@ -90,7 +90,7 @@ function ScorersRail({ rows, loading, onPress }) {
       renderItem={({ item, index }) => <Card item={item} index={index} onPress={onPress} />}
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ paddingHorizontal: space[5], gap: 12 }}
-      snapToInterval={144}
+      snapToInterval={152}
       decelerationRate="fast"
     />
   );

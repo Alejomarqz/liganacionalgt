@@ -12,35 +12,22 @@ import { Beams } from './Slash';
 const DEFAULT = require('../../resources/estadios/1415.jpg');
 const NIGHT = palette.ink;
 
-const hexA = (hex, a) => {
-  const h = hex.replace('#', '');
-  const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
-  return `rgba(${r},${g},${b},${a})`;
-};
-
 /**
  * mode: 'duotone' (estadio, tono azul Liga) · 'photo' (foto del club a todo color)
  */
 function StadiumBackdrop({ uri, source, height, tint = 'brand', mode = 'duotone', children, style }) {
-  const { colors, isDark } = useDesign();
+  const { colors } = useDesign();
   const [failed, setFailed] = useState(false);
   const img = source || (uri && !failed ? { uri } : DEFAULT);
   const base = tint === 'live' ? ['#5A0E1E', '#1A0711'] : colors.photoTint;
   const photo = mode === 'photo';
   const bg = colors.bg;
 
-  // Fundido final: en oscuro el azul noche ya es el fondo; en claro, pasamos
-  // por un azul noche semitransparente antes de llegar al fondo claro para
-  // que no se vea "lavado" ni cortado.
+  // Fundido largo y suave (el que se veía mejor): la foto se va disolviendo
+  // desde la mitad hasta el color de la página, sin escalones ni cortes.
   const fade = photo
-    ? {
-        colors: ['rgba(6,10,23,0.55)', 'rgba(6,10,23,0.05)', 'rgba(6,10,23,0.55)', isDark ? hexA(bg, 0.92) : 'rgba(6,10,23,0.80)', bg],
-        locations: [0, 0.28, 0.62, 0.86, 1],
-      }
-    : {
-        colors: ['rgba(6,10,23,0.30)', 'rgba(6,10,23,0.28)', isDark ? hexA(bg, 0.75) : 'rgba(6,10,23,0.62)', bg],
-        locations: [0, 0.5, 0.8, 1],
-      };
+    ? { colors: ['rgba(6,10,23,0.55)', 'rgba(6,10,23,0.05)', 'rgba(6,10,23,0.5)', bg], locations: [0, 0.3, 0.62, 1] }
+    : { colors: ['rgba(6,10,23,0.25)', 'rgba(6,10,23,0.35)', bg], locations: [0, 0.5, 1] };
 
   return (
     <View style={[{ height, overflow: 'hidden', backgroundColor: NIGHT }, style]}>
