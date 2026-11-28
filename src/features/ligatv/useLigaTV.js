@@ -29,7 +29,7 @@ const toDate = (v) => {
 export const streamKind = (url = '') => (/\.(m3u8|mp4)(\?|$)/i.test(String(url)) ? 'native' : 'web');
 
 export function parseLigaTV(raw) {
-  if (!raw) return { active: false };
+  if (!raw) return { active: false, chatEnabled: true, admins: [], title: 'Liga TV' };
   return {
     active: Boolean(raw.active && (raw.hlsUrl || raw.playerUrl)),
     hlsUrl: raw.hlsUrl || raw.playerUrl || null,
@@ -47,7 +47,7 @@ export function parseLigaTV(raw) {
 }
 
 export function useLigaTV() {
-  const [state, setState] = useState({ loading: true, tv: { active: false } });
+  const [state, setState] = useState({ loading: true, tv: parseLigaTV(null) });
   useEffect(() => {
     let unsub = () => {};
     try {
@@ -59,7 +59,7 @@ export function useLigaTV() {
           () => setState((s) => ({ ...s, loading: false })),
         );
     } catch {
-      setState({ loading: false, tv: { active: false } });
+      setState({ loading: false, tv: parseLigaTV(null) });
     }
     return () => unsub();
   }, []);

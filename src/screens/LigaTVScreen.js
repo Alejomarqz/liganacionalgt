@@ -6,9 +6,9 @@
 // Se controla desde Firestore (app_config/liga_tv y liga_tv_shows).
 
 import React, { useMemo, useState } from 'react';
-import { Image, Modal, ScrollView, Share, View, StyleSheet } from 'react-native';
+import { Image, ScrollView, Share, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CaretLeft, BellSimpleRinging, BellSimple, Television, PushPin, ShareNetwork, Play, X, ChatsCircle, CaretRight } from 'phosphor-react-native';
+import { CaretLeft, BellSimpleRinging, BellSimple, Television, PushPin, ShareNetwork, Play, X, ChatsCircle } from 'phosphor-react-native';
 
 import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
@@ -48,19 +48,19 @@ function NextShowHero({ show, insets, colors }) {
   const c = useCountdown(show?.startsAt);
   const upcoming = show?.startsAt && !c.done;
   return (
-    <StadiumBackdrop source={show?.poster ? { uri: show.poster } : undefined} mode={show?.poster ? 'photo' : 'duotone'} height={insets.top + 380}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: 100 }}>
+    <StadiumBackdrop source={show?.poster ? { uri: show.poster } : undefined} mode={show?.poster ? 'photo' : 'duotone'} height={insets.top + (upcoming ? 340 : 230)}>
+      <View style={{ flex: 1, justifyContent: 'flex-end', paddingHorizontal: 20, paddingBottom: upcoming ? 78 : 58 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Television size={18} color="#fff" weight="fill" />
           <Txt variant="overline" color="rgba(255,255,255,0.85)">
-            Liga TV · {upcoming ? 'Próxima transmisión' : 'En vivo'}
+            Liga TV · {upcoming ? 'Próxima transmisión' : 'Fuera del aire'}
           </Txt>
         </View>
         <Txt variant="h1" color="#fff" style={{ marginTop: 8 }} numberOfLines={2}>
           {upcoming ? show.title : 'Nuestras transmisiones'}
         </Txt>
         <Txt variant="body" color="rgba(255,255,255,0.8)" style={{ marginTop: 4 }} numberOfLines={2}>
-          {upcoming ? `${formatKickoff(show.startsAt)}${show.hosts?.length ? ` · Con ${show.hosts.join(', ')}` : ''}` : 'Análisis, previas y la voz de la afición. Aquí verás cuando salgamos en vivo.'}
+          {upcoming ? `${formatKickoff(show.startsAt)}${show.hosts?.length ? ` · Con ${show.hosts.join(', ')}` : ''}` : 'Análisis, previas y la voz de la afición. Cuando salgamos al aire, lo verás aquí.'}
         </Txt>
         {upcoming ? (
           <>
@@ -180,7 +180,8 @@ export default function LigaTVScreen({ navigation }) {
   const { loading, tv } = useLigaTV();
   const shows = useLigaTVShows();
   const [episode, setEpisode] = useState(null);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [tab, setTab] = useState('chat');
+  const [footerH, setFooterH] = useState(0);
 
   // Próxima emisión: la del config o la primera programada
   const next = useMemo(() => {
@@ -192,99 +193,103 @@ export default function LigaTVScreen({ navigation }) {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <Skeleton height={insets.top + 380} radius={0} />
+        <Skeleton height={insets.top + 230} radius={0} />
       </View>
     );
   }
 
   if (tv.active) return <LiveView tv={tv} navigation={navigation} insets={insets} colors={colors} />;
 
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
-        {episode ? (
-          <View style={{ paddingTop: insets.top, backgroundColor: '#000' }}>
-            <LigaTVPlayer source={episode.vodUrl} poster={episode.poster} title={episode.title} live={false} />
-            <View style={[styles.episodeBar, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
-              <Txt variant="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>
-                {episode.title}
-              </Txt>
-              <PressableScale onPress={() => setEpisode(null)} hitSlop={hitSlop} accessibilityLabel="Cerrar episodio" style={[styles.iconBtn, { backgroundColor: colors.surfaceHigh }]}>
-                <X size={16} color={colors.text} weight="bold" />
-              </PressableScale>
-            </View>
-          </View>
-        ) : (
-          <NextShowHero show={next} insets={insets} colors={colors} />
-        )}
+  const footerPad = (footerH || insets.bottom + 64) + 4;
 
-        <View style={{ gap: 26, paddingTop: 8 }}>
-          {tv.chatEnabled ? (
-            <PressableScale onPress={() => setChatOpen(true)} scaleTo={0.98} style={{ marginHorizontal: 16 }}>
-              <View style={[styles.preChat, { backgroundColor: colors.primary }]}>
-                <View style={styles.preChatIcon}>
-                  <ChatsCircle size={26} color="#fff" weight="fill" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Txt variant="bodyStrong" color="#fff">
-                    Chat de la previa
-                  </Txt>
-                  <Txt variant="caption" color="rgba(255,255,255,0.8)" numberOfLines={2}>
-                    La transmisión aún no empieza, pero la afición ya está hablando. ¡Únete!
-                  </Txt>
-                </View>
-                <CaretRight size={18} color="#fff" weight="bold" />
-              </View>
-            </PressableScale>
-          ) : null}
-
-          {restUpcoming.length ? (
-            <View>
-              <SectionHeader title="Programación" />
-              <Surface padded={false} style={{ marginHorizontal: 16 }}>
-                {restUpcoming.map((s, i) => (
-                  <ShowRow key={s.id} show={s} colors={colors} last={i === restUpcoming.length - 1} />
-                ))}
-              </Surface>
-            </View>
-          ) : null}
-
-          <View>
-            <SectionHeader title="Episodios anteriores" />
-            {shows.past.length ? (
-              <Surface padded={false} style={{ marginHorizontal: 16 }}>
-                {shows.past.map((s, i) => (
-                  <ShowRow key={s.id} show={s} onPlay={setEpisode} colors={colors} last={i === shows.past.length - 1} />
-                ))}
-              </Surface>
-            ) : (
-              <EmptyState title="Muy pronto" message="Aquí podrás volver a ver nuestras transmisiones." Icon={Television} />
-            )}
-          </View>
-        </View>
-      </ScrollView>
-
-      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: insets.bottom, backgroundColor: colors.bgElevated }}>
-        <FooterTabs navigation={navigation} routeName="LigaTV" />
-      </View>
-
-      <Modal visible={chatOpen} animationType="slide" onRequestClose={() => setChatOpen(false)} statusBarTranslucent>
-        <View style={{ flex: 1, backgroundColor: colors.bg, paddingTop: insets.top, paddingBottom: insets.bottom }}>
+  const programa = (
+    <ScrollView contentContainerStyle={{ paddingBottom: footerPad + 16, gap: 26, paddingTop: 14 }} showsVerticalScrollIndicator={false}>
+      {episode ? (
+        <View style={{ backgroundColor: '#000' }}>
+          <LigaTVPlayer source={episode.vodUrl} poster={episode.poster} title={episode.title} live={false} />
           <View style={[styles.episodeBar, { backgroundColor: colors.surface, borderBottomColor: colors.divider }]}>
-            <ChatsCircle size={22} color={colors.primary} weight="fill" />
-            <View style={{ flex: 1 }}>
-              <Txt variant="bodyStrong">Chat de la previa</Txt>
-              <Txt variant="caption" tone="muted" numberOfLines={1}>
-                {next?.startsAt ? `Arrancamos ${formatKickoff(next.startsAt)}` : 'Cuando salgamos en vivo, la plática sigue aquí'}
-              </Txt>
-            </View>
-            <PressableScale onPress={() => setChatOpen(false)} hitSlop={hitSlop} accessibilityLabel="Cerrar chat" style={[styles.iconBtn, { backgroundColor: colors.surfaceHigh }]}>
+            <Txt variant="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>
+              {episode.title}
+            </Txt>
+            <PressableScale onPress={() => setEpisode(null)} hitSlop={hitSlop} accessibilityLabel="Cerrar episodio" style={[styles.iconBtn, { backgroundColor: colors.surfaceHigh }]}>
               <X size={16} color={colors.text} weight="bold" />
             </PressableScale>
           </View>
-          <LiveChat streamId="main" admins={tv.admins} />
         </View>
-      </Modal>
+      ) : null}
+      <View>
+        <SectionHeader title="Programación" />
+        {restUpcoming.length ? (
+          <Surface padded={false} style={{ marginHorizontal: 16 }}>
+            {restUpcoming.map((s, i) => (
+              <ShowRow key={s.id} show={s} colors={colors} last={i === restUpcoming.length - 1} />
+            ))}
+          </Surface>
+        ) : (
+          <Txt variant="body" tone="muted" style={{ marginHorizontal: 20 }}>
+            Pronto anunciaremos la próxima transmisión. Activa las notificaciones para enterarte.
+          </Txt>
+        )}
+      </View>
+      <View>
+        <SectionHeader title="Episodios anteriores" />
+        {shows.past.length ? (
+          <Surface padded={false} style={{ marginHorizontal: 16 }}>
+            {shows.past.map((s, i) => (
+              <ShowRow key={s.id} show={s} onPlay={setEpisode} colors={colors} last={i === shows.past.length - 1} />
+            ))}
+          </Surface>
+        ) : (
+          <EmptyState title="Muy pronto" message="Aquí podrás volver a ver nuestras transmisiones." Icon={Television} />
+        )}
+      </View>
+    </ScrollView>
+  );
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <NextShowHero show={next} insets={insets} colors={colors} />
+
+      {tv.chatEnabled ? (
+        <View style={[styles.switchRow, { backgroundColor: colors.surfaceHigh }]}>
+          {[
+            ['chat', 'Chat de la previa', ChatsCircle],
+            ['prog', 'Programación', Television],
+          ].map(([k, label, Icon]) => {
+            const on = tab === k;
+            return (
+              <PressableScale key={k} onPress={() => setTab(k)} style={{ flex: 1 }} accessibilityRole="tab" accessibilityState={{ selected: on }}>
+                <View style={[styles.switchBtn, on ? { backgroundColor: colors.primary } : null]}>
+                  <Icon size={16} color={on ? '#fff' : colors.textMuted} weight={on ? 'fill' : 'regular'} />
+                  <Txt variant="caption" color={on ? '#fff' : colors.textMuted} style={{ fontFamily: 'Inter-Bold', fontSize: 13 }}>
+                    {label}
+                  </Txt>
+                </View>
+              </PressableScale>
+            );
+          })}
+        </View>
+      ) : null}
+
+      <View style={{ flex: 1 }}>
+        {tv.chatEnabled && tab === 'chat' ? (
+          <View style={{ flex: 1, paddingBottom: footerPad }}>
+            <View style={[styles.chatNote, { borderBottomColor: colors.divider }]}>
+              <View style={[styles.onlineDot, { backgroundColor: colors.success || '#22C55E' }]} />
+              <Txt variant="caption" tone="muted" numberOfLines={1} style={{ flex: 1 }}>
+                {next?.startsAt ? `Arrancamos ${formatKickoff(next.startsAt)} · la plática ya empezó` : 'La transmisión aún no empieza · la plática ya empezó'}
+              </Txt>
+            </View>
+            <LiveChat streamId="main" admins={tv.admins} />
+          </View>
+        ) : (
+          programa
+        )}
+      </View>
+
+      <View onLayout={(e) => setFooterH(e.nativeEvent.layout.height)} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, paddingBottom: insets.bottom, backgroundColor: colors.bgElevated }}>
+        <FooterTabs navigation={navigation} routeName="LigaTV" />
+      </View>
     </View>
   );
 }
@@ -300,6 +305,10 @@ const styles = StyleSheet.create({
   pinned: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
   iconBtn: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   round: { width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  switchRow: { flexDirection: 'row', gap: 4, padding: 4, marginHorizontal: 16, marginTop: -26, borderRadius: 14 },
+  switchBtn: { height: 40, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  chatNote: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 20, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },
+  onlineDot: { width: 7, height: 7, borderRadius: 4 },
   preChat: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16 },
   preChatIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   episodeBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth },

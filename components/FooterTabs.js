@@ -9,6 +9,7 @@ import { useDesign } from '../src/design/useDesign';
 import Txt from '../src/ui/Text';
 import { PulseDot } from '../src/ui/LiveBadge';
 import { useLigaTV } from '../src/features/ligatv/useLigaTV';
+import { showInterstitialIfReady } from '../ads/AdManager';
 
 const ITEMS = [
   { key: 'home', label: 'Inicio', route: 'Home', icon: House, activeRoutes: ['Home', 'Match'] },
@@ -27,7 +28,15 @@ const FooterItem = memo(function FooterItem({ item, active, navigation, colors, 
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
       accessibilityLabel={isLive ? 'En vivo ahora' : item.label}
-      onPress={() => navigation?.navigate(item.route)}
+      onPress={async () => {
+        // En vivo: intersticial (video/pantalla completa) antes de entrar
+        if (item.key === 'live' && !active) {
+          try {
+            await showInterstitialIfReady('tab_live');
+          } catch {}
+        }
+        navigation?.navigate(item.route);
+      }}
       style={styles.item}
     >
       {active ? <View style={[styles.indicator, { backgroundColor: colors.primary }]} /> : null}

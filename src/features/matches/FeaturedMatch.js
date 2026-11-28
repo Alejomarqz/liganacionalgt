@@ -81,20 +81,20 @@ function FeaturedMatch({ match, onPress, onPredict, reminderOn, onToggleReminder
 
       {match.isScheduled ? (
         <View style={styles.actions}>
-          {/* Principal: azul de marca */}
-          <PressableScale onPress={onPredict} style={{ flex: 1.15 }} accessibilityLabel="Pronosticar el marcador">
-            <LinearGradient colors={[colors.primaryGradient[0], colors.primaryGradient[1]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.btn, styles.btnShadow]}>
-              <Target size={18} color="#fff" weight="fill" />
-              <Txt variant="bodyStrong" color="#fff" style={{ fontFamily: 'Inter-ExtraBold' }}>
+          {/* Principal: azul vivo con brillo superior */}
+          <PressableScale onPress={onPredict} style={{ flex: 1 }} accessibilityLabel="Pronosticar el marcador">
+            <LinearGradient colors={['#5B86FF', '#2F5BFF', '#1E3FD8']} locations={[0, 0.55, 1]} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={[styles.btn, styles.btnPrimary]}>
+              <Target size={17} color="#fff" weight="fill" />
+              <Txt color="#fff" style={styles.btnLabel}>
                 Pronosticar
               </Txt>
             </LinearGradient>
           </PressableScale>
-          {/* Secundario: blanco sólido */}
+          {/* Secundario: vidrio sobre la foto */}
           <PressableScale onPress={onToggleReminder} style={{ flex: 1 }} accessibilityLabel={reminderOn ? 'Quitar recordatorio' : 'Recordarme el partido'}>
-            <View style={[styles.btn, { backgroundColor: '#fff' }]}>
-              {reminderOn ? <BellSimpleRinging size={18} color={colors.primaryStrong} weight="fill" /> : <BellSimple size={18} color={colors.primaryStrong} weight="bold" />}
-              <Txt variant="bodyStrong" color="#0A1440" style={{ fontFamily: 'Inter-ExtraBold' }}>
+            <View style={[styles.btn, reminderOn ? styles.btnGlassOn : styles.btnGlass]}>
+              {reminderOn ? <BellSimpleRinging size={17} color="#9CC4FF" weight="fill" /> : <BellSimple size={17} color="#fff" weight="bold" />}
+              <Txt color="#fff" style={styles.btnLabel}>
                 {reminderOn ? 'Te avisamos' : 'Recordarme'}
               </Txt>
             </View>
@@ -111,9 +111,11 @@ const styles = StyleSheet.create({
   center: { width: 116, alignItems: 'center' },
   venue: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 16 },
   actions: { flexDirection: 'row', gap: 10, marginTop: 22 },
-  btn: { height: 50, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  btnShadow: { shadowColor: '#3568FD', shadowOpacity: 0.5, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
-  btnGhost: { backgroundColor: 'rgba(6,10,23,0.38)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)' },
+  btn: { height: 46, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 12 },
+  btnLabel: { fontFamily: 'Inter-Bold', fontSize: 15, letterSpacing: 0.2 },
+  btnPrimary: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', shadowColor: '#1E3FD8', shadowOpacity: 0.45, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 5 },
+  btnGlass: { backgroundColor: 'rgba(255,255,255,0.12)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.32)' },
+  btnGlassOn: { backgroundColor: 'rgba(91,134,255,0.28)', borderWidth: 1, borderColor: 'rgba(156,196,255,0.6)' },
 });
 
 export default memo(FeaturedMatch);
