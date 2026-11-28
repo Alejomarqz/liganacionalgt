@@ -78,6 +78,23 @@ service cloud.firestore {
     }
 
     // ───────── Ranking: total = quiniela + reto diario ─────────
+    // ───────── Apodos únicos: quien lo reserva primero, es suyo ─────────
+    match /nicknames/{key} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.nick is string
+        && request.resource.data.nick.size() >= 3
+        && request.resource.data.nick.size() <= 24
+        && key.size() >= 3 && key.size() <= 24
+        && request.resource.data.keys().hasOnly(['uid', 'nick', 'updatedAt']);
+      allow update: if signedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'nick', 'updatedAt']);
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
     match /quiniela_scores/{uid} {
       allow read: if signedIn();
       allow write: if signedIn()

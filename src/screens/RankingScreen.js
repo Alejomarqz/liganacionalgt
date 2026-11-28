@@ -9,7 +9,7 @@ import { useDesign } from '../design/useDesign';
 import { hitSlop } from '../design/tokens';
 import { Txt, Surface, PressableScale, Tabs, Slash, SkeletonCard, EmptyState, SectionHeader } from '../ui';
 import { seasonLabel } from '../api/clock';
-import { NICK_MAX } from '../features/games/identity';
+import { NICK_MAX, useNickAvailability } from '../features/games/identity';
 import { useMyLeagues, useLeagueTable, createLeague, joinLeague, leaveLeague } from '../features/games/quinielaStore';
 import { useGameStats } from '../features/games/useGameStats';
 
@@ -95,6 +95,8 @@ export default function RankingScreen({ navigation }) {
 
   const [editing, setEditing] = useState(false);
   const [nickDraft, setNickDraft] = useState('');
+  const nickStatus = useNickAvailability(nickDraft, editing);
+  const canSave = editing && (nickStatus === 'free' || nickStatus === 'mine');
   const [leagueName, setLeagueName] = useState('');
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState(null);
@@ -140,7 +142,24 @@ export default function RankingScreen({ navigation }) {
                   Tu nombre en el ranking
                 </Txt>
                 {editing ? (
-                  <Input value={nickDraft} onChangeText={setNickDraft} placeholder="Tu apodo" maxLength={NICK_MAX} colors={colors} />
+                  <>
+                    <Input value={nickDraft} onChangeText={setNickDraft} placeholder="Tu apodo" maxLength={NICK_MAX} colors={colors} />
+                    {nickStatus !== 'idle' ? (
+                      <Txt
+                        variant="caption"
+                        style={{ marginTop: 6, fontFamily: 'Inter-SemiBold' }}
+                        color={nickStatus === 'free' || nickStatus === 'mine' ? colors.success : nickStatus === 'checking' ? colors.textMuted : colors.live}
+                      >
+                        {{
+                          checking: 'Comprobando…',
+                          free: '✓ Disponible',
+                          mine: '✓ Es tu apodo actual',
+                          taken: '✕ Ya lo usa otra persona, prueba con otro',
+                          invalid: 'Mínimo 3 letras o números',
+                        }[nickStatus]}
+                      </Txt>
+                    ) : null}
+                  </>
                 ) : (
                   <Txt variant="h2">{nick || '…'}</Txt>
                 )}
@@ -150,7 +169,7 @@ export default function RankingScreen({ navigation }) {
                   label="Guardar"
                   primary
                   colors={colors}
-                  disabled={busy}
+                  disabled={busy || !canSave}
                   onPress={() =>
                     run(async () => {
                       await rename(nickDraft);

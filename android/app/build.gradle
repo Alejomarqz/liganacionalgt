@@ -22,7 +22,7 @@ android {
     minSdk 24
     targetSdk 35
     versionCode vcode
-    versionName "5.4.0"
+    versionName "6.0.0"
     ndk { abiFilters "armeabi-v7a", "arm64-v8a", "x86_64" }
   }
 
